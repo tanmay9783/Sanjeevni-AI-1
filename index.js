@@ -188,6 +188,7 @@ const lipSyncMessage = async (messageIndex) => {
 
 // 🔹 In-memory chat history (you can later replace with DB)
 let chatHistory = [];
+let currentPatient = null;
 
 app.post("/chat", async (req, res) => {
   try {
@@ -199,9 +200,15 @@ app.post("/chat", async (req, res) => {
     await ensureAudiosFolder();
 
     const userMessage = req.body.message;
+    
+    // 🔹 Initialize patient context if provided
+    if (req.body.patientData) {
+      currentPatient = req.body.patientData;
+      chatHistory = []; // Reset history for new patient
+    }
 
-    // 🔹 Default intro if no message
-    if (!userMessage) {
+    // 🔹 Default intro if no message and no new patient
+    if (!userMessage && !req.body.patientData) {
       return res.send({
         messages: [
           {
@@ -237,11 +244,13 @@ app.post("/chat", async (req, res) => {
       });
     }
 
-    // 🔹 Add user message to memory
-    chatHistory.push({
-      role: "user",
-      content: userMessage,
-    });
+    // 🔹 Add user message to memory (if there is one)
+    if (userMessage) {
+      chatHistory.push({
+        role: "user",
+        content: userMessage,
+      });
+    }
 
     // 🔹 Limit memory (last 30 messages)
     if (chatHistory.length > 30) {
@@ -258,6 +267,13 @@ app.post("/chat", async (req, res) => {
           role: "system",
           content: `
 You are Sanjeevni AI, a friendly and caring virtual doctor.
+${currentPatient ? `
+CURRENT PATIENT DETAILS:
+Name: ${currentPatient.name}
+Age: ${currentPatient.age}
+Patient ID: ${currentPatient.id}
+
+IMPORTANT: Start by warmly greeting the patient by their Name on the first message.` : ""}
 
 Your personality:
 - Talk like a real human doctor (warm, polite, supportive)
