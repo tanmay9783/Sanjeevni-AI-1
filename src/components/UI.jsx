@@ -9,6 +9,19 @@ export const UI = ({ hidden }) => {
 
   const [isRecording, setIsRecording] = useState(false);
   const [recordingStatus, setRecordingStatus] = useState("");
+
+  const [showModal, setShowModal] = useState(true);
+  const [formData, setFormData] = useState({ name: "", age: "", mobile: "" });
+  const [sentToDoctor, setSentToDoctor] = useState(false);
+
+  const handleFormSubmit = (e) => {
+    e.preventDefault();
+    const id = Math.floor(1000 + Math.random() * 9000);
+    const data = { ...formData, id };
+    setShowModal(false);
+    // Send an initial silent backend ping with the patient context
+    chat("", data);
+  };
   const recognitionRef = useRef(null);
   const lastSentTime = useRef(0);
 
@@ -206,6 +219,53 @@ if (pythonPlaying) return;
 
   if (hidden) return null;
 
+  if (showModal) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <form onSubmit={handleFormSubmit} className="bg-white p-8 rounded-3xl shadow-2xl max-w-md w-full mx-4 pointer-events-auto">
+          <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">Welcome</h2>
+          <p className="text-gray-500 text-center mb-6">Please enter your details to start the consultation.</p>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+              <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="John Doe" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Age</label>
+              <input required type="number" value={formData.age} onChange={e => setFormData({...formData, age: e.target.value})} className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="30" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Mobile No</label>
+              <input required type="tel" value={formData.mobile} onChange={e => setFormData({...formData, mobile: e.target.value})} className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="+1 234 567 8900" />
+            </div>
+          </div>
+          
+          <button type="submit" className="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition-all">
+            Start Consultation
+          </button>
+        </form>
+      </div>
+    );
+  }
+
+  if (sentToDoctor) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/90 backdrop-blur-md">
+        <div className="text-center p-8 bg-white rounded-3xl shadow-xl max-w-sm mx-4 border border-gray-100 pointer-events-auto">
+          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-4xl">✅</span>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Details Sent</h2>
+          <p className="text-gray-600 mb-6">Your chat and details have been forwarded to Dr. Sharma.</p>
+          <button onClick={() => { setSentToDoctor(false); setShowModal(true); setFormData({name:"", age:"", mobile:""}); }} className="text-blue-600 font-semibold hover:underline">
+            Start New Session
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-10 pointer-events-none flex flex-col justify-end">
       <div className="w-full max-w-3xl mx-auto mb-6 px-4 pointer-events-auto">
@@ -286,6 +346,14 @@ if (pythonPlaying) return;
             ) : (
               "Send"
             )}
+          </button>
+
+          {/* Send to Doctor Button */}
+          <button
+            onClick={() => setSentToDoctor(true)}
+            className="flex-shrink-0 px-4 py-3 rounded-xl text-white font-semibold transition-all duration-200 bg-orange-500 hover:bg-orange-600 pointer-events-auto"
+          >
+            🩺 Send to Doctor
           </button>
         </div>
 

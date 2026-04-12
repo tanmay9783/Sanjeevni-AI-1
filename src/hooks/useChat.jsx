@@ -16,8 +16,8 @@ export const ChatProvider = ({ children }) => {
   const lastPayloadTsRef = useRef(0);
 
   // ── chat() — blocked entirely while Python is active ─────────────────────
-  const chat = async (messageText) => {
-    if (!messageText?.trim()) return [];
+  const chat = async (messageText, patientData = null) => {
+    if (!messageText?.trim() && !patientData) return [];
     if (isSendingRef.current) return [];
     if (pythonPlayingRef.current) {
       console.log("🔇 chat() blocked — Python is speaking");
@@ -31,7 +31,7 @@ export const ChatProvider = ({ children }) => {
       const response = await fetch(`${backendUrl}/chat`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ message: messageText }),
+        body:    JSON.stringify({ message: messageText, patientData }),
       });
 
       // 423 = pythonMode active on Node side (double guard)
