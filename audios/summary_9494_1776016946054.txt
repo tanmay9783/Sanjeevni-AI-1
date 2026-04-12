@@ -1,0 +1,12 @@
+Name: hojn
+Age: 9
+Mobile: 1234567890
+UUID: 9494
+
+Summary:
+Patient: hojn, Age: 9 
+Mobile: 1234567890
+
+Chief Complaint: None reported. 
+Symptoms: None disclosed. 
+Current Condition: Patient reports feeling "good" with no apparent symptoms or concerns. Further evaluation is needed to determine the patient's overall health status and any potential underlying conditions.

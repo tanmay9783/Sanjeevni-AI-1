@@ -1,0 +1,11 @@
+Name: jj
+Age: 90
+Mobile: 12345678
+UUID: 8974
+
+Summary:
+**Patient:** jj, **Age:** 90, **Mobile:** 12345678
+
+**Chief Complaints and History:** Not available, as the consultation has just begun and no symptoms or conditions have been discussed. 
+
+**Current Status:** Initial consultation, awaiting patient's response to initiate discussion on symptoms and medical history.

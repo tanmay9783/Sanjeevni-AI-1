@@ -383,6 +383,94 @@ ONLY JSON
     });
   }
 });
+
+app.post("/send-to-doctor", async (req, res) => {
+  try {
+    const { name, age, mobile, id } = req.body;
+    
+    // 1. Fetch history from Swasya AI
+    let historyContext = "No previous medical history found in Swasya records.";
+    try {
+      console.log(`🔍 Fetching history for patient ${id} from Swasya...`);
+      const swasyaSummaryRes = await fetch(`http://localhost:8000/patients/summary/${id}`);
+      if (swasyaSummaryRes.ok) {
+        const sData = await swasyaSummaryRes.json();
+        if (sData.success) {
+          const chiefComplaints = (sData.chief_complaints || []).map(c => `- ${c.date}: ${c.complaint}`).join("\n");
+          const recentMeds = (sData.recent_medications || []).map(m => `- ${m}`).join("\n");
+          
+          historyContext = `
+RECENT HISTORY:
+${chiefComplaints || "None"}
+
+RECENT MEDICATIONS:
+${recentMeds || "None"}
+
+LATEST ASSESSMENT:
+${sData.latest_visit?.soap_note?.assessment || "None"}
+`;
+        }
+      }
+    } catch (err) {
+      console.warn("⚠️ Could not fetch patient history context:", err.message);
+    }
+
+    // 2. Generate summary from chatHistory with context
+    const prompt = `You are an AI generating a medical consultation summary. 
+Patient info: Name: ${name}, Age: ${age}, Mobile: ${mobile}
+
+PAST MEDICAL HISTORY (from records):
+${historyContext}
+
+Current Consultation History:
+${chatHistory.map(m => m.role.toUpperCase() + ": " + m.content).join("\n")}
+
+Provide a concise, professional medical summary of the patient's current symptoms and conditions discussed. 
+Incorporate past history ONLY if it's relevant to the current symptoms (e.g., if a symptom is worsening since the last visit).
+Do not include pleasantries.`;
+
+    const completion = await groq.chat.completions.create({
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.3,
+      messages: [{ role: "user", content: prompt }]
+    });
+
+    const summaryText = completion.choices[0]?.message?.content || "No summary could be generated.";
+
+    // 2. Save text file of the summary locally
+    await ensureAudiosFolder();
+    const filename = `audios/summary_${id || 'unknown'}_${Date.now()}.txt`;
+    await fs.writeFile(filename, `Name: ${name}\nAge: ${age}\nMobile: ${mobile}\nUUID: ${id}\n\nSummary:\n${summaryText}`);
+    console.log(`✅ Summary text file generated: ${filename}`);
+
+    // 3. Send payload to Swasya AI doctor dashboard
+    console.log(`📤 Sending payload to Swasya AI backend...`);
+    const swasyaRes = await fetch("http://localhost:8000/patients/avatar-summary", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        uhid: String(id),
+        name: name || "Unknown Avatar Patient",
+        age: age || "Unknown",
+        phone: mobile || "Unknown",
+        summary: summaryText
+      })
+    });
+
+    if (!swasyaRes.ok) {
+      const errText = await swasyaRes.text();
+      console.error("Swasya AI Error:", errText);
+      throw new Error(`Doctor Dashboard integration failed: ${swasyaRes.status} ${errText}`);
+    }
+
+    res.json({ success: true, message: "Summary generated and sent to doctor successfully.", file: filename });
+
+  } catch (error) {
+    console.error("🔥 /send-to-doctor error:", error);
+    res.status(500).json({ error: "Failed to send to doctor", details: error.message });
+  }
+});
+
 app.listen(port, () => {
   console.log(`Virtual Girlfriend listening on port ${port}`);
   console.log(`Rhubarb path: ${RHUBARB_PATH}`);

@@ -1,0 +1,9 @@
+Name: john
+Age: 30
+Mobile: 12
+UUID: 9289
+
+Summary:
+Patient: John, 30 years old. 
+Chief Complaint: Fever since last night. 
+Symptoms: Fever, unknown severity. Additional symptoms not yet specified, pending further evaluation.

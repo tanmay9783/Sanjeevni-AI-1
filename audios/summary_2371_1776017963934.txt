@@ -1,0 +1,9 @@
+Name: anant
+Age: 12
+Mobile: 23134567689
+UUID: 2371
+
+Summary:
+**Patient:** Anant, 12 years old  
+**Chief Complaint:** Stomach pain  
+**Symptoms:** Undifferentiated abdominal pain, location and duration not specified. Further evaluation and history-taking are required to determine the underlying cause.

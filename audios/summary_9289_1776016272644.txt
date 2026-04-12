@@ -1,0 +1,10 @@
+Name: john
+Age: 30
+Mobile: 12
+UUID: 9289
+
+Summary:
+Patient: John, Age: 30
+Chief Complaint: Fever
+Symptoms: Fever, onset last night. Additional symptoms pending further discussion. 
+Current Status: Assessment in progress.
