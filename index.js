@@ -445,8 +445,8 @@ Do not include pleasantries.`;
     console.log(`✅ Summary text file generated: ${filename}`);
 
     // 3. Send payload to Swasya AI doctor dashboard
-    console.log(`📤 Sending payload to Swasya AI backend...`);
-    const swasyaRes = await fetch("http://localhost:8000/patients/avatar-summary", {
+    console.log(`📤 Sending payload to Swasya AI backend at ${swasyaBaseUrl}...`);
+    const swasyaRes = await fetch(`${swasyaBaseUrl}/patients/avatar-summary`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
