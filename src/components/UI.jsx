@@ -13,14 +13,43 @@ export const UI = ({ hidden }) => {
   const [showModal, setShowModal] = useState(true);
   const [formData, setFormData] = useState({ name: "", age: "", mobile: "" });
   const [sentToDoctor, setSentToDoctor] = useState(false);
+  const [isSendingToDoctor, setIsSendingToDoctor] = useState(false);
 
   const handleFormSubmit = (e) => {
     e.preventDefault();
     const id = Math.floor(1000 + Math.random() * 9000);
     const data = { ...formData, id };
+    setFormData(data);
     setShowModal(false);
     // Send an initial silent backend ping with the patient context
     chat("", data);
+  };
+
+  const handleSendToDoctor = async () => {
+    setIsSendingToDoctor(true);
+    try {
+      const response = await fetch(`${backendUrl}/send-to-doctor`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          age: formData.age,
+          mobile: formData.mobile,
+          id: formData.id || Math.floor(1000 + Math.random() * 9000)
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to send to doctor.");
+      }
+
+      setSentToDoctor(true);
+    } catch (err) {
+      console.error("Error sending to doctor:", err);
+      alert("Error sending to doctor dashboard.");
+    } finally {
+      setIsSendingToDoctor(false);
+    }
   };
   const recognitionRef = useRef(null);
   const lastSentTime = useRef(0);
@@ -350,10 +379,15 @@ if (pythonPlaying) return;
 
           {/* Send to Doctor Button */}
           <button
-            onClick={() => setSentToDoctor(true)}
-            className="flex-shrink-0 px-4 py-3 rounded-xl text-white font-semibold transition-all duration-200 bg-orange-500 hover:bg-orange-600 pointer-events-auto"
+            onClick={handleSendToDoctor}
+            disabled={isSendingToDoctor || pythonPlaying}
+            className={`flex-shrink-0 px-4 py-3 rounded-xl text-white font-semibold transition-all duration-200 pointer-events-auto
+              ${isSendingToDoctor
+                ? "bg-orange-400 cursor-wait animate-pulse"
+                : "bg-orange-500 hover:bg-orange-600"
+              }`}
           >
-            🩺 Send to Doctor
+            {isSendingToDoctor ? "🩺 Generating & Sending..." : "🩺 Send to Doctor"}
           </button>
         </div>
 
