@@ -1,6 +1,7 @@
 services:
   - type: web
     name: sanjeevni-backend
+    rootDir: backend
     env: docker
     plan: starter # Starter plan recommended for better performance with Rhubarb/FFmpeg
     region: ohio # Adjust if needed
