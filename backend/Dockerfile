@@ -24,6 +24,6 @@ COPY . .
 # Ensure audios folder exists at runtime
 RUN mkdir -p audios
 
-EXPOSE 3125
-CMD ["npm", "start"]
+# Start the app using shell form so $PORT is correctly interpreted
+CMD node index.js
 

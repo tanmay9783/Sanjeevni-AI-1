@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: sanjeevni-backend
+    env: docker
+    plan: starter # Starter plan recommended for better performance with Rhubarb/FFmpeg
+    region: ohio # Adjust if needed
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: GROQ_API_KEY
+        sync: false # Set this in the Render dashboard manually or use value if safe
+      - key: MURF_API_KEY
+        sync: false
+      - key: SWASYA_API_URL
+        sync: false # Update this with your new Swasya Render URL
+      - key: CORS_ORIGIN
+        value: "*"
+      - key: NODEPATH
+        value: node
