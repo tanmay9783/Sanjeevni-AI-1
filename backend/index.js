@@ -2,7 +2,7 @@ import { exec } from "child_process";
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
-import { promises as fs } from "fs";
+import { promises as fs, existsSync } from "fs";
 import Groq from "groq-sdk";
 
 dotenv.config();
@@ -341,22 +341,34 @@ NO markdown. ONLY JSON.
 
     // 🔊 Stable Sequential TTS + Lipsync processing
     const voiceSettings = isHindi 
-      ? { voiceId: "hi-IN-payal", locale: "hi-IN" } 
-      : { voiceId: "en-US-natalie", locale: "en-US" };
+      ? { voiceId: "Payal", locale: "hi-IN" } 
+      : { voiceId: MURF_VOICE_ID, locale: MURF_LOCALE };
 
     for (let i = 0; i < messages.length; i++) {
       const message = messages[i];
       const fileName = `audios/message_${i}.mp3`;
+      const jsonPath = `audios/message_${i}.json`;
       const textInput = message.text || "Hello";
 
-      console.log(`🔊 Generating audio ${i} (${selectedLanguage}):`, textInput.slice(0, 50));
+      console.log(`🔊 Generating audio ${i} (${selectedLanguage}) with voice ${voiceSettings.voiceId}:`, textInput.slice(0, 50));
 
       try {
         await generateMurfAudio(textInput, fileName, voiceSettings.voiceId, voiceSettings.locale);
         await lipSyncMessage(i);
 
-        message.audio = await audioFileToBase64(fileName);
-        message.lipsync = await readJsonTranscript(`audios/message_${i}.json`);
+        if (existsSync(fileName)) {
+          message.audio = await audioFileToBase64(fileName);
+        } else {
+          console.error(`❌ Audio file not found after generation: ${fileName}`);
+          message.audio = null;
+        }
+
+        if (existsSync(jsonPath)) {
+          message.lipsync = await readJsonTranscript(jsonPath);
+        } else {
+          console.error(`❌ Lipsync file not found after generation: ${jsonPath}`);
+          message.lipsync = { mouthCues: [] };
+        }
       } catch (ttsError) {
         console.error(`⚠️ TTS/Lipsync failed for segment ${i}:`, ttsError.message);
         message.audio = null;
