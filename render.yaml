@@ -1,10 +1,12 @@
 services:
   - type: web
     name: sanjeevni-backend
-    rootDir: backend
     env: docker
     plan: starter
     region: ohio
+    dockerContext: .
+    dockerfilePath: backend/Dockerfile
+    healthCheckPath: /
     envVars:
       - key: PORT
         value: 10000
@@ -17,8 +19,8 @@ services:
       - key: MURF_LOCALE
         value: en-US
       - key: SWASYA_API_URL
-        sync: false
+        value: https://swasya-backend.onrender.com
       - key: CORS_ORIGIN
-        sync: false
+        value: "*"
       - key: NODEPATH
         value: node
