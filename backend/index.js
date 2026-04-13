@@ -18,6 +18,8 @@ const murfApiKey = process.env.MURF_API_KEY;
 const MURF_VOICE_ID = process.env.MURF_VOICE_ID || "Natalie";
 const MURF_LOCALE = process.env.MURF_LOCALE || "en-US";
 
+let lastTtsError = null;
+
 const app = express();
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
@@ -81,13 +83,14 @@ app.get("/health", async (req, res) => {
       diagnostics.rhubarb = `Error: ${e.message}`;
     }
 
-    // 5. Check Folders
     if (existsSync("audios")) {
       diagnostics.audiosFolder = "Exists";
     } else {
       await ensureAudiosFolder();
       diagnostics.audiosFolder = existsSync("audios") ? "Created" : "Failed to create";
     }
+
+    diagnostics.lastVoiceError = lastTtsError || "None";
 
     res.send(diagnostics);
   } catch (err) {
@@ -368,7 +371,7 @@ NO markdown. ONLY JSON.
 
     // 🔊 Stable Sequential TTS + Lipsync processing
     const voiceSettings = isHindi 
-      ? { voiceId: "Payal", locale: "hi-IN" } 
+      ? { voiceId: "hi-IN-payal", locale: "hi-IN" } 
       : { voiceId: MURF_VOICE_ID, locale: MURF_LOCALE };
 
     for (let i = 0; i < messages.length; i++) {
@@ -396,10 +399,6 @@ NO markdown. ONLY JSON.
           console.error(`❌ Lipsync file not found after generation: ${jsonPath}`);
           message.lipsync = { mouthCues: [] };
         }
-      } catch (ttsError) {
-        console.error(`⚠️ TTS/Lipsync failed for segment ${i}:`, ttsError.message);
-        message.audio = null;
-        message.lipsync = { mouthCues: [] };
       }
     }
 
@@ -415,9 +414,25 @@ NO markdown. ONLY JSON.
   }
 });
 
-app.post("/send-to-doctor", async (req, res) => {
+// 🎤 Test Voice Endpoint
+app.get("/test-voice/:lang", async (req, res) => {
+  const { lang } = req.params;
+  const voiceId = lang === "hindi" ? "hi-IN-payal" : MURF_VOICE_ID;
+  const locale = lang === "hindi" ? "hi-IN" : MURF_LOCALE;
+  const filePath = "audios/test_voice.mp3";
+
   try {
-    const { name, age, mobile, id } = req.body;
+    lastTtsError = null;
+    await generateMurfAudio("Testing voice generation", filePath, voiceId, locale);
+    const audioBase64 = await audioFileToBase64(filePath);
+    res.send({ success: true, audio: audioBase64, voiceId });
+  } catch (e) {
+    lastTtsError = e.message;
+    res.status(500).send({ success: false, error: e.message, voiceId });
+  }
+});
+
+const generateMurfAudio = async (text, outputFilePath, voiceId = MURF_VOICE_ID, locale = MURF_LOCALE) => {
     
     // 1. Fetch history from Swasya AI
     const baseUrl = (process.env.SWASYA_API_URL || "https://swasya-ai.onrender.com").replace(/\/+$/, ""); 

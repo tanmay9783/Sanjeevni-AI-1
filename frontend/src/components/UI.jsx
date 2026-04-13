@@ -479,15 +479,33 @@ if (pythonPlaying) return;
                     { label: "FFmpeg (Video)", status: healthStatus.ffmpeg },
                     { label: "Rhubarb (Lips)", status: healthStatus.rhubarb },
                     { label: "Audio Folder", status: healthStatus.audiosFolder },
+                    { label: "Last TTS Error", status: healthStatus.lastVoiceError },
                   ].map((item, idx) => (
                     <div key={idx} className="flex flex-col gap-0.5">
                       <span className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">{item.label}</span>
                       <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full ${item.status === "Healthy" || item.status === "Exists" || item.status?.startsWith("Ready") ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" : "bg-red-500"}`} />
+                        <span className={`w-2 h-2 rounded-full ${item.status === "Healthy" || item.status === "Exists" || item.status?.startsWith("Ready") || item.status === "None" ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" : "bg-red-500"}`} />
                         <span className="text-sm font-medium text-gray-700 truncate">{item.status}</span>
                       </div>
                     </div>
                   ))}
+
+                  <div className="pt-2 flex flex-col gap-2">
+                    <button 
+                      onClick={() => testVoice("hindi")} 
+                      disabled={testingVoice}
+                      className="w-full py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
+                    >
+                      {testingVoice ? "🔊 Testing..." : "🎯 Test Hindi Voice (hi-IN-payal)"}
+                    </button>
+                    <button 
+                      onClick={() => testVoice("english")} 
+                      disabled={testingVoice}
+                      className="w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
+                    >
+                      {testingVoice ? "🔊 Testing..." : "🎯 Test English Voice (Natalie)"}
+                    </button>
+                  </div>
                 </>
               )
             ) : (
