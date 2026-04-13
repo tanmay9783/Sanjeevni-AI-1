@@ -432,6 +432,9 @@ app.get("/test-voice/:lang", async (req, res) => {
   } catch (e) {
     lastTtsError = e.message;
     res.status(500).send({ success: false, error: e.message, voiceId });
+  }
+});
+
 const generateMurfAudio = async (text, outputFilePath, voiceId = MURF_VOICE_ID, locale = MURF_LOCALE) => {
   if (!murfApiKey) {
     throw new Error("MURF_API_KEY is missing");
