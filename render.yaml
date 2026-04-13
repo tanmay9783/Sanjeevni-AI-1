@@ -12,9 +12,13 @@ services:
         sync: false
       - key: MURF_API_KEY
         sync: false
+      - key: MURF_VOICE_ID
+        value: Natalie
+      - key: MURF_LOCALE
+        value: en-US
       - key: SWASYA_API_URL
         sync: false
       - key: CORS_ORIGIN
-        value: "*"
+        sync: false
       - key: NODEPATH
         value: node
