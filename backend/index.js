@@ -207,26 +207,9 @@ app.post("/chat", async (req, res) => {
       chatHistory = []; // Reset history for new patient
     }
 
-    // 🔹 Default intro if no message and no new patient
-    if (!userMessage && !req.body.patientData) {
-      return res.send({
-        messages: [
-          {
-            text: "Hey dear. How are you feeling today?",
-            audio: await audioFileToBase64("audios/intro_0.wav"),
-            lipsync: await readJsonTranscript("audios/intro_0.json"),
-            facialExpression: "smile",
-            animation: "Talking_1",
-          },
-          {
-            text: "You can tell me anything. I'm here to help you 💙",
-            audio: await audioFileToBase64("audios/intro_1.wav"),
-            lipsync: await readJsonTranscript("audios/intro_1.json"),
-            facialExpression: "smile",
-            animation: "Talking_2",
-          },
-        ],
-      });
+    // 🔹 Default intro logic (Wait for initial patientData)
+    if (!userMessage && !req.body.patientData && !currentPatient) {
+      return res.status(400).json({ error: "No patient context or message provided" });
     }
 
     // 🔹 API key check
@@ -259,6 +242,7 @@ app.post("/chat", async (req, res) => {
 
     const selectedLanguage = currentPatient?.language || "english";
     const isHindi = selectedLanguage.toLowerCase() === "hindi";
+    const greetingMode = !userMessage && currentPatient;
 
     // 🔥 AI CALL
     const completion = await groq.chat.completions.create({
@@ -275,23 +259,26 @@ CURRENT PATIENT DETAILS:
 Name: ${currentPatient.name}
 Age: ${currentPatient.age}
 Patient ID: ${currentPatient.id}
-Preferred Language: ${selectedLanguage}
+Preferred Language: ${selectedLanguage}` : ""}
 
-IMPORTANT: Start by warmly greeting the patient by their Name on the first message.` : ""}
-
-Your personality:
-- Talk like a real human doctor (warm, polite, supportive)
-- Understand the user's problem first
-- Answer doubts clearly and directly
-- Ask follow-up questions if needed
-- Keep it extremely simple and helpful
+CONVERSATION CONTEXT:
+${greetingMode ? `
+PHASE 1 (Greeting): This is the START of the session. 
+- You must warmly greet the patient by their NAME.
+- Mention you see they are ${currentPatient.age} years old.
+- Ask them "How can I help you today?" or "What brings you here?".
+- Do NOT give medical advice yet.
+` : `
+PHASE 2 (Consultation): The patient has described a problem.
+- Be supportive and professional.
+- Use the STRICT RESPONSE FORMAT below if clinical advice is needed.
+`}
 
 STRICT LANGUAGE RULE:
 - YOU MUST RESPOND ENTIRELY IN ${selectedLanguage.toUpperCase()}.
-- IF THE USER SPEAKS IN ANOTHER LANGUAGE, YOU STILL RESPOND IN ${selectedLanguage.toUpperCase()}.
 
-STRICT RESPONSE FORMAT:
-When possible or when providing a diagnosis/advice, use this EXACT format:
+STRICT RESPONSE FORMAT (Phase 2 Only):
+When providing medical advice or if symptoms are mentioned, use this format:
 1. Possible Condition:
 2. Cause:
 3. Treatment:
@@ -299,11 +286,10 @@ When possible or when providing a diagnosis/advice, use this EXACT format:
 5. Home Care:
 6. Risk if Ignored:
 
-Make the reply VERY SHORT and concise.
+Keep the reply VERY SHORT and concise.
 
 STRICT OUTPUT:
-Return ONLY valid JSON.
-
+Return ONLY valid JSON. 
 Format:
 {
   "messages": [
@@ -315,15 +301,7 @@ Format:
   ]
 }
 
-Emotion guide:
-- Greeting → smile + Talking_1
-- Explanation → default + Talking_0
-- Reassuring → smile + Talking_2
-- Serious → sad + Talking_1
-
-NO markdown
-NO extra text
-ONLY JSON
+NO markdown. ONLY JSON.
 `,
         },
         ...chatHistory,
@@ -361,12 +339,13 @@ ONLY JSON
       content: messages.map((m) => m.text).join(" "),
     });
 
-    // 🔊 Parallel TTS + Lipsync processing for Speed
+    // 🔊 Stable Sequential TTS + Lipsync processing
     const voiceSettings = isHindi 
-      ? { voiceId: "Payal", locale: "hi-IN" } 
-      : { voiceId: MURF_VOICE_ID, locale: MURF_LOCALE };
+      ? { voiceId: "hi-IN-payal", locale: "hi-IN" } 
+      : { voiceId: "en-US-natalie", locale: "en-US" };
 
-    await Promise.all(messages.map(async (message, i) => {
+    for (let i = 0; i < messages.length; i++) {
+      const message = messages[i];
       const fileName = `audios/message_${i}.mp3`;
       const textInput = message.text || "Hello";
 
@@ -383,7 +362,7 @@ ONLY JSON
         message.audio = null;
         message.lipsync = { mouthCues: [] };
       }
-    }));
+    }
 
     return res.send({ messages });
 
