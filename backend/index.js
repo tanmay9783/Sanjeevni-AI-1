@@ -397,8 +397,11 @@ NO markdown. ONLY JSON.
           message.lipsync = await readJsonTranscript(jsonPath);
         } else {
           console.error(`❌ Lipsync file not found after generation: ${jsonPath}`);
-          message.lipsync = { mouthCues: [] };
         }
+      } catch (ttsError) {
+        console.error(`⚠️ TTS/Lipsync failed for segment ${i}:`, ttsError.message);
+        message.audio = null;
+        message.lipsync = { mouthCues: [] };
       }
     }
 
@@ -429,10 +432,45 @@ app.get("/test-voice/:lang", async (req, res) => {
   } catch (e) {
     lastTtsError = e.message;
     res.status(500).send({ success: false, error: e.message, voiceId });
-  }
-});
-
 const generateMurfAudio = async (text, outputFilePath, voiceId = MURF_VOICE_ID, locale = MURF_LOCALE) => {
+  if (!murfApiKey) {
+    throw new Error("MURF_API_KEY is missing");
+  }
+
+  const response = await fetch("https://api.murf.ai/v1/speech/generate", {
+    method: "POST",
+    headers: {
+      "api-key": murfApiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      text,
+      voiceId,
+      locale,
+      format: "MP3",
+      sampleRate: 44100,
+      channelType: "MONO",
+      encodeAsBase64: true,
+      modelVersion: "GEN2",
+      rate: 0,
+      pitch: 0,
+      variation: 1,
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Murf TTS failed: ${response.status} - ${errText}`);
+  }
+
+  const { encodedAudio } = await response.json();
+  const buffer = Buffer.from(encodedAudio, "base64");
+  await fs.writeFile(outputFilePath, buffer);
+};
+
+app.post("/send-to-doctor", async (req, res) => {
+  try {
+    const { name, age, mobile, id } = req.body;
     
     // 1. Fetch history from Swasya AI
     const baseUrl = (process.env.SWASYA_API_URL || "https://swasya-ai.onrender.com").replace(/\/+$/, ""); 
