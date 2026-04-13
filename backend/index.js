@@ -38,33 +38,60 @@ app.get("/", (req, res) => {
   res.send("Groq + Murf backend is running");
 });
 
-// Optional: list Murf voices
-app.get("/voices", async (req, res) => {
+// 🛠 Health check / Diagnostics
+app.get("/health", async (req, res) => {
+  const diagnostics = {
+    groqKey: "Missing",
+    murfKey: "Missing",
+    ffmpeg: "Not Found",
+    rhubarb: "Not Found",
+    audiosFolder: "Not Found"
+  };
+
   try {
-    if (!murfApiKey) {
-      return res.status(400).send({ error: "MURF_API_KEY is missing" });
+    // 1. Check Groq Key
+    const gKey = process.env.GROQ_API_KEY || "";
+    if (gKey && !gKey.includes("your_")) {
+      diagnostics.groqKey = "Ready (gsk_...)";
+    } else {
+      diagnostics.groqKey = "Placeholder / Missing";
     }
 
-    const response = await fetch("https://api.murf.ai/v1/speech/voices", {
-      method: "GET",
-      headers: {
-        "api-key": murfApiKey,
-      },
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Murf voices error: ${response.status} - ${errText}`);
+    // 2. Check Murf Key
+    const mKey = process.env.MURF_API_KEY || "";
+    if (mKey && !mKey.includes("your_")) {
+      diagnostics.murfKey = "Ready";
+    } else {
+      diagnostics.murfKey = "Placeholder / Missing";
     }
 
-    const voices = await response.json();
-    return res.send(voices);
-  } catch (error) {
-    console.error("Voices fetch error:", error);
-    return res.status(500).send({
-      error: "Failed to fetch Murf voices",
-      details: error.message,
-    });
+    // 3. Check FFmpeg
+    try {
+      await execCommand(`${FFMPEG_PATH} -version`);
+      diagnostics.ffmpeg = "Healthy";
+    } catch (e) {
+      diagnostics.ffmpeg = `Error: ${e.message}`;
+    }
+
+    // 4. Check Rhubarb
+    try {
+      await execCommand(`${RHUBARB_PATH} --version`);
+      diagnostics.rhubarb = "Healthy";
+    } catch (e) {
+      diagnostics.rhubarb = `Error: ${e.message}`;
+    }
+
+    // 5. Check Folders
+    if (existsSync("audios")) {
+      diagnostics.audiosFolder = "Exists";
+    } else {
+      await ensureAudiosFolder();
+      diagnostics.audiosFolder = existsSync("audios") ? "Created" : "Failed to create";
+    }
+
+    res.send(diagnostics);
+  } catch (err) {
+    res.status(500).send({ error: "Diagnostics failed", details: err.message });
   }
 });
 
