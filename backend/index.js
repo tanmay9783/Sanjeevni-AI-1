@@ -120,7 +120,7 @@ const downloadFile = async (url, outputFilePath) => {
 };
 
 // Murf TTS
-const generateMurfAudio = async (text, outputFilePath) => {
+const generateMurfAudio = async (text, outputFilePath, voiceId = MURF_VOICE_ID, locale = MURF_LOCALE) => {
   if (!murfApiKey) {
     throw new Error("MURF_API_KEY is missing");
   }
@@ -133,8 +133,8 @@ const generateMurfAudio = async (text, outputFilePath) => {
     },
     body: JSON.stringify({
       text,
-      voiceId: MURF_VOICE_ID,
-      locale: MURF_LOCALE,
+      voiceId,
+      locale,
       format: "MP3",
       sampleRate: 44100,
       channelType: "MONO",
@@ -257,6 +257,9 @@ app.post("/chat", async (req, res) => {
       chatHistory = chatHistory.slice(-30);
     }
 
+    const selectedLanguage = currentPatient?.language || "english";
+    const isHindi = selectedLanguage.toLowerCase() === "hindi";
+
     // 🔥 AI CALL
     const completion = await groq.chat.completions.create({
       model: "llama-3.3-70b-versatile",
@@ -266,12 +269,13 @@ app.post("/chat", async (req, res) => {
         {
           role: "system",
           content: `
-You are Sanjeevni AI, a friendly and caring virtual doctor.
+You are Sanjeevni AI, a friendly and caring virtual AI Doctor.
 ${currentPatient ? `
 CURRENT PATIENT DETAILS:
 Name: ${currentPatient.name}
 Age: ${currentPatient.age}
 Patient ID: ${currentPatient.id}
+Preferred Language: ${selectedLanguage}
 
 IMPORTANT: Start by warmly greeting the patient by their Name on the first message.` : ""}
 
@@ -280,13 +284,22 @@ Your personality:
 - Understand the user's problem first
 - Answer doubts clearly and directly
 - Ask follow-up questions if needed
-- Keep it simple and helpful
+- Keep it extremely simple and helpful
 
-Conversation rules:
-- Always respond based on latest user message
-- Do not repeat previous answers
-- Be conversational, not robotic
-- Maximum 3 messages
+STRICT LANGUAGE RULE:
+- YOU MUST RESPOND ENTIRELY IN ${selectedLanguage.toUpperCase()}.
+- IF THE USER SPEAKS IN ANOTHER LANGUAGE, YOU STILL RESPOND IN ${selectedLanguage.toUpperCase()}.
+
+STRICT RESPONSE FORMAT:
+When possible or when providing a diagnosis/advice, use this EXACT format:
+1. Possible Condition:
+2. Cause:
+3. Treatment:
+4. Common Medicines: (no dosage)
+5. Home Care:
+6. Risk if Ignored:
+
+Make the reply VERY SHORT and concise.
 
 STRICT OUTPUT:
 Return ONLY valid JSON.
@@ -348,29 +361,29 @@ ONLY JSON
       content: messages.map((m) => m.text).join(" "),
     });
 
-    // 🔊 TTS + Lipsync processing
-    for (let i = 0; i < messages.length; i++) {
-      const message = messages[i];
+    // 🔊 Parallel TTS + Lipsync processing for Speed
+    const voiceSettings = isHindi 
+      ? { voiceId: "Payal", locale: "hi-IN" } 
+      : { voiceId: MURF_VOICE_ID, locale: MURF_LOCALE };
+
+    await Promise.all(messages.map(async (message, i) => {
       const fileName = `audios/message_${i}.mp3`;
       const textInput = message.text || "Hello";
 
-      console.log(`🔊 Generating audio ${i}:`, textInput);
+      console.log(`🔊 Generating audio ${i} (${selectedLanguage}):`, textInput.slice(0, 50));
 
       try {
-        await generateMurfAudio(textInput, fileName);
+        await generateMurfAudio(textInput, fileName, voiceSettings.voiceId, voiceSettings.locale);
         await lipSyncMessage(i);
 
         message.audio = await audioFileToBase64(fileName);
-        message.lipsync = await readJsonTranscript(
-          `audios/message_${i}.json`
-        );
+        message.lipsync = await readJsonTranscript(`audios/message_${i}.json`);
       } catch (ttsError) {
-        console.error("⚠️ TTS/Lipsync failed:", ttsError.message);
-
+        console.error(`⚠️ TTS/Lipsync failed for segment ${i}:`, ttsError.message);
         message.audio = null;
         message.lipsync = { mouthCues: [] };
       }
-    }
+    }));
 
     return res.send({ messages });
 
@@ -389,7 +402,7 @@ app.post("/send-to-doctor", async (req, res) => {
     const { name, age, mobile, id } = req.body;
     
     // 1. Fetch history from Swasya AI
-    const baseUrl = (process.env.SWASYA_API_URL || "https://swasya-backend.onrender.com").replace(/\/+$/, ""); 
+    const baseUrl = (process.env.SWASYA_API_URL || "https://swasya-ai.onrender.com").replace(/\/+$/, ""); 
     const historyUrl = `${baseUrl}/patients/summary/${id}`;
     let historyContext = "No previous medical history found in Swasya records.";
     try {

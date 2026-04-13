@@ -19,7 +19,7 @@ services:
       - key: MURF_LOCALE
         value: en-US
       - key: SWASYA_API_URL
-        value: https://swasya-backend.onrender.com
+        value: https://swasya-ai.onrender.com
       - key: CORS_ORIGIN
         value: "*"
       - key: NODEPATH

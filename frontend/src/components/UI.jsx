@@ -11,9 +11,15 @@ export const UI = ({ hidden }) => {
   const [recordingStatus, setRecordingStatus] = useState("");
 
   const [showModal, setShowModal] = useState(true);
-  const [formData, setFormData] = useState({ name: "", age: "", mobile: "" });
+  const [formData, setFormData] = useState({ name: "", age: "", mobile: "", language: "english" });
   const [sentToDoctor, setSentToDoctor] = useState(false);
   const [isSendingToDoctor, setIsSendingToDoctor] = useState(false);
+
+  // Map of display language to speech recognition locale
+  const languageLocales = {
+    english: "en-US",
+    hindi: "hi-IN"
+  };
 
   const handleFormSubmit = (e) => {
     e.preventDefault();
@@ -21,6 +27,12 @@ export const UI = ({ hidden }) => {
     const data = { ...formData, id };
     setFormData(data);
     setShowModal(false);
+    
+    // Update recognition language dynamically
+    if (recognitionRef.current) {
+      recognitionRef.current.lang = languageLocales[formData.language] || "en-US";
+    }
+
     // Send an initial silent backend ping with the patient context
     chat("", data);
   };
@@ -260,9 +272,23 @@ if (pythonPlaying) return;
               <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
               <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="John Doe" />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Age</label>
-              <input required type="number" value={formData.age} onChange={e => setFormData({...formData, age: e.target.value})} className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="30" />
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Age</label>
+                <input required type="number" value={formData.age} onChange={e => setFormData({...formData, age: e.target.value})} className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="30" />
+              </div>
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Language</label>
+                <select 
+                  required 
+                  value={formData.language} 
+                  onChange={e => setFormData({...formData, language: e.target.value})} 
+                  className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium"
+                >
+                  <option value="english">English</option>
+                  <option value="hindi">हिन्दी (Hindi)</option>
+                </select>
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Mobile No</label>
@@ -270,7 +296,7 @@ if (pythonPlaying) return;
             </div>
           </div>
           
-          <button type="submit" className="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition-all">
+          <button type="submit" className="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition-all shadow-lg hover:shadow-blue-200">
             Start Consultation
           </button>
         </form>
