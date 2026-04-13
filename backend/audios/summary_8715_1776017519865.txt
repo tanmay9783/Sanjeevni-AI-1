@@ -1,0 +1,12 @@
+Name: ks
+Age: 22
+Mobile: 9887654321
+UUID: 8715
+
+Summary:
+Patient: ks, Age: 22 
+Chief Complaint: Leg pain 
+Location of pain: Not specified 
+Duration of pain: Not specified 
+
+Current Symptoms: Leg pain of unspecified location and duration. Further evaluation and history-taking are required to determine the underlying cause and develop an appropriate treatment plan.

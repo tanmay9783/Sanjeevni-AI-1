@@ -1,0 +1,17 @@
+Name: rahul
+Age: 22
+Mobile: 1234567898
+UUID: 1925
+
+Summary:
+**Medical Consultation Summary**
+
+Patient: Rahul, Age: 22
+
+**Chief Complaint:** Acute onset of dry cough and fever since last night.
+
+**Symptoms:** Dry cough, fever. No other symptoms reported.
+
+**Past Medical History:** No relevant past medical history.
+
+**Assessment and Recommendations:** The patient is experiencing a dry cough and fever. Recommendations include increasing fluid intake, using a humidifier, and taking a fever reducer like paracetamol. The patient will be advised to monitor symptoms and consider further evaluation if they worsen or persist.
