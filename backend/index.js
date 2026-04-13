@@ -389,13 +389,16 @@ app.post("/send-to-doctor", async (req, res) => {
     const { name, age, mobile, id } = req.body;
     
     // 1. Fetch history from Swasya AI
-    const swasyaBaseUrl = process.env.SWASYA_API_URL || "https://swasya-backend.onrender.com";
+    const baseUrl = (process.env.SWASYA_API_URL || "https://swasya-backend.onrender.com").replace(/\/+$/, ""); 
+    const historyUrl = `${baseUrl}/patients/summary/${id}`;
     let historyContext = "No previous medical history found in Swasya records.";
     try {
-      console.log(`🔍 Fetching history for patient ${id} from Swasya at ${swasyaBaseUrl}...`);
-      const swasyaSummaryRes = await fetch(`${swasyaBaseUrl}/patients/summary/${id}`);
+      console.log(`🔍 [SANJEEVNI] Attempting to fetch history for patient ${id} from: ${historyUrl}`);
+      const swasyaSummaryRes = await fetch(historyUrl);
+      
       if (swasyaSummaryRes.ok) {
         const sData = await swasyaSummaryRes.json();
+        console.log(`✅ [SANJEEVNI] History fetch success from Swasya`);
         if (sData.success) {
           const chiefComplaints = (sData.chief_complaints || []).map(c => `- ${c.date}: ${c.complaint}`).join("\n");
           const recentMeds = (sData.recent_medications || []).map(m => `- ${m}`).join("\n");
@@ -411,6 +414,9 @@ LATEST ASSESSMENT:
 ${sData.latest_visit?.soap_note?.assessment || "None"}
 `;
         }
+      } else {
+        const errText = await swasyaSummaryRes.text().catch(() => "No error body");
+        console.warn(`⚠️ [SANJEEVNI] Swasya history fetch returned ${swasyaSummaryRes.status}: ${errText.slice(0, 100)}`);
       }
     } catch (err) {
       console.warn("⚠️ Could not fetch patient history context:", err.message);
@@ -445,8 +451,10 @@ Do not include pleasantries.`;
     console.log(`✅ Summary text file generated: ${filename}`);
 
     // 3. Send payload to Swasya AI doctor dashboard
-    console.log(`📤 Sending payload to Swasya AI backend at ${swasyaBaseUrl}...`);
-    const swasyaRes = await fetch(`${swasyaBaseUrl}/patients/avatar-summary`, {
+    const avatarPostUrl = `${baseUrl}/patients/avatar-summary`;
+    console.log(`📤 [SANJEEVNI] Sending payload to Swasya at: ${avatarPostUrl}`);
+    
+    const swasyaRes = await fetch(avatarPostUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -459,9 +467,9 @@ Do not include pleasantries.`;
     });
 
     if (!swasyaRes.ok) {
-      const errText = await swasyaRes.text();
-      console.error("Swasya AI Error:", errText);
-      throw new Error(`Doctor Dashboard integration failed: ${swasyaRes.status} ${errText}`);
+      const errText = await swasyaRes.text().catch(() => "No error body");
+      console.error(`❌ [SANJEEVNI] Swasya Post Error (${swasyaRes.status}):`, errText.slice(0, 300));
+      throw new Error(`Doctor Dashboard integration failed: ${swasyaRes.status} - Please verify Swasya API availability.`);
     }
 
     res.json({ success: true, message: "Summary generated and sent to doctor successfully.", file: filename });
