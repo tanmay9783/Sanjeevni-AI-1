@@ -389,7 +389,7 @@ app.post("/send-to-doctor", async (req, res) => {
     const { name, age, mobile, id } = req.body;
     
     // 1. Fetch history from Swasya AI
-    const swasyaBaseUrl = process.env.SWASYA_API_URL || "http://localhost:8000";
+    const swasyaBaseUrl = process.env.SWASYA_API_URL || "https://swasya-backend.onrender.com";
     let historyContext = "No previous medical history found in Swasya records.";
     try {
       console.log(`🔍 Fetching history for patient ${id} from Swasya at ${swasyaBaseUrl}...`);
