@@ -11,36 +11,9 @@ export const UI = ({ hidden }) => {
   const [recordingStatus, setRecordingStatus] = useState("");
 
   const [showModal, setShowModal] = useState(true);
-  const [formData, setFormData] = useState({ name: "", age: "", mobile: "", language: "english" });
+  const [formData, setFormData] = useState({ name: "", age: "", mobile: "" });
   const [sentToDoctor, setSentToDoctor] = useState(false);
   const [isSendingToDoctor, setIsSendingToDoctor] = useState(false);
-
-  const [showHealth, setShowHealth] = useState(false);
-  const [healthStatus, setHealthStatus] = useState(null);
-  const [healthLoading, setHealthLoading] = useState(false);
-
-  const fetchHealth = async () => {
-    setHealthLoading(true);
-    try {
-      const res = await fetch(`${backendUrl}/health`);
-      const data = await res.json();
-      setHealthStatus(data);
-    } catch (e) {
-      setHealthStatus({ error: "Cannot reach backend. Is it running?" });
-    } finally {
-      setHealthLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (showHealth) fetchHealth();
-  }, [showHealth]);
-
-  // Map of display language to speech recognition locale
-  const languageLocales = {
-    english: "en-US",
-    hindi: "hi-IN"
-  };
 
   const handleFormSubmit = (e) => {
     e.preventDefault();
@@ -48,12 +21,6 @@ export const UI = ({ hidden }) => {
     const data = { ...formData, id };
     setFormData(data);
     setShowModal(false);
-    
-    // Update recognition language dynamically
-    if (recognitionRef.current) {
-      recognitionRef.current.lang = languageLocales[formData.language] || "en-US";
-    }
-
     // Send an initial silent backend ping with the patient context
     chat("", data);
   };
@@ -174,7 +141,7 @@ export const UI = ({ hidden }) => {
     }
 
     const recognition        = new SpeechRecognition();
-    recognition.lang         = "en-US";   // default to English
+    recognition.lang         = "hi-IN";   // change to "en-US" for English
     recognition.continuous   = false;
     recognition.interimResults = false;
 
@@ -287,25 +254,23 @@ if (pythonPlaying) return;
         <form onSubmit={handleFormSubmit} className="bg-white p-8 rounded-3xl shadow-2xl max-w-md w-full mx-4 pointer-events-auto">
           <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">Welcome</h2>
           <p className="text-gray-500 text-center mb-6">Please enter your details to start the consultation.</p>
-          
+
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
               <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="John Doe" />
             </div>
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Age</label>
-                <input required type="number" value={formData.age} onChange={e => setFormData({...formData, age: e.target.value})} className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="30" />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Age</label>
+              <input required type="number" value={formData.age} onChange={e => setFormData({...formData, age: e.target.value})} className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="30" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Mobile No</label>
               <input required type="tel" value={formData.mobile} onChange={e => setFormData({...formData, mobile: e.target.value})} className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="+1 234 567 8900" />
             </div>
           </div>
-          
-          <button type="submit" className="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition-all shadow-lg hover:shadow-blue-200">
+
+          <button type="submit" className="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition-all">
             Start Consultation
           </button>
         </form>
@@ -433,66 +398,6 @@ if (pythonPlaying) return;
         </p>
 
       </div>
-
-      {/* 🛠 Health Button */}
-      <button 
-        onClick={() => setShowHealth(!showHealth)}
-        className="fixed bottom-4 right-4 z-50 p-3 bg-gray-800/80 text-white rounded-full hover:bg-gray-700 transition-all pointer-events-auto shadow-lg"
-        title="System Diagnostics"
-      >
-        {showHealth ? "✖" : "🛠"}
-      </button>
-
-      {/* 📊 Health Modal */}
-      {showHealth && (
-        <div className="fixed bottom-20 right-4 z-50 w-80 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl p-6 border border-gray-100 pointer-events-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-gray-800">System Status</h3>
-            <button onClick={fetchHealth} disabled={healthLoading} className="text-blue-600 text-sm font-semibold hover:underline disabled:opacity-50">
-              {healthLoading ? "Checking..." : "Refresh"}
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            {healthStatus ? (
-              healthStatus.error ? (
-                <div className="p-3 bg-red-50 text-red-600 rounded-xl text-sm font-medium border border-red-100 italic">
-                  ⚠️ {healthStatus.error}
-                </div>
-              ) : (
-                <>
-                  {[
-                    { label: "Groq API Key", status: healthStatus.groqKey },
-                    { label: "Murf API Key", status: healthStatus.murfKey },
-                    { label: "FFmpeg (Video)", status: healthStatus.ffmpeg },
-                    { label: "Rhubarb (Lips)", status: healthStatus.rhubarb },
-                    { label: "Audio Folder", status: healthStatus.audiosFolder },
-                    { label: "Last TTS Error", status: healthStatus.lastVoiceError },
-                  ].map((item, idx) => (
-                    <div key={idx} className="flex flex-col gap-0.5">
-                      <span className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">{item.label}</span>
-                      <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full ${item.status === "Healthy" || item.status === "Exists" || item.status?.startsWith("Ready") || item.status === "None" ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" : "bg-red-500"}`} />
-                        <span className="text-sm font-medium text-gray-700 truncate">{item.status}</span>
-                      </div>
-                    </div>
-                  ))}
-
-
-                </>
-              )
-            ) : (
-              <p className="text-gray-400 text-sm animate-pulse">Running diagnostics...</p>
-            )}
-          </div>
-
-          <div className="mt-6 pt-4 border-t border-gray-100">
-            <p className="text-[10px] text-gray-400 leading-relaxed">
-              * If any item is RED, please check your <code className="bg-gray-100 px-1 rounded">backend/.env</code> file settings.
-            </p>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -2,7 +2,7 @@ import { exec } from "child_process";
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
-import { promises as fs, existsSync } from "fs";
+import { promises as fs } from "fs";
 import Groq from "groq-sdk";
 
 dotenv.config();
@@ -17,8 +17,6 @@ const murfApiKey = process.env.MURF_API_KEY;
 // or just the voice actor name like "Natalie"
 const MURF_VOICE_ID = process.env.MURF_VOICE_ID || "Natalie";
 const MURF_LOCALE = process.env.MURF_LOCALE || "en-US";
-
-let lastTtsError = null;
 
 const app = express();
 app.use(express.json({ limit: "50mb" }));
@@ -40,61 +38,33 @@ app.get("/", (req, res) => {
   res.send("Groq + Murf backend is running");
 });
 
-// 🛠 Health check / Diagnostics
-app.get("/health", async (req, res) => {
-  const diagnostics = {
-    groqKey: "Missing",
-    murfKey: "Missing",
-    ffmpeg: "Not Found",
-    rhubarb: "Not Found",
-    audiosFolder: "Not Found"
-  };
-
+// Optional: list Murf voices
+app.get("/voices", async (req, res) => {
   try {
-    // 1. Check Groq Key
-    const gKey = process.env.GROQ_API_KEY || "";
-    if (gKey && !gKey.includes("your_")) {
-      diagnostics.groqKey = "Ready (gsk_...)";
-    } else {
-      diagnostics.groqKey = "Placeholder / Missing";
+    if (!murfApiKey) {
+      return res.status(400).send({ error: "MURF_API_KEY is missing" });
     }
 
-    // 2. Check Murf Key
-    const mKey = process.env.MURF_API_KEY || "";
-    if (mKey && !mKey.includes("your_")) {
-      diagnostics.murfKey = "Ready";
-    } else {
-      diagnostics.murfKey = "Placeholder / Missing";
+    const response = await fetch("https://api.murf.ai/v1/speech/voices", {
+      method: "GET",
+      headers: {
+        "api-key": murfApiKey,
+      },
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Murf voices error: ${response.status} - ${errText}`);
     }
 
-    // 3. Check FFmpeg
-    try {
-      await execCommand(`${FFMPEG_PATH} -version`);
-      diagnostics.ffmpeg = "Healthy";
-    } catch (e) {
-      diagnostics.ffmpeg = `Error: ${e.message}`;
-    }
-
-    // 4. Check Rhubarb
-    try {
-      await execCommand(`${RHUBARB_PATH} --version`);
-      diagnostics.rhubarb = "Healthy";
-    } catch (e) {
-      diagnostics.rhubarb = `Error: ${e.message}`;
-    }
-
-    if (existsSync("audios")) {
-      diagnostics.audiosFolder = "Exists";
-    } else {
-      await ensureAudiosFolder();
-      diagnostics.audiosFolder = existsSync("audios") ? "Created" : "Failed to create";
-    }
-
-    diagnostics.lastVoiceError = lastTtsError || "None";
-
-    res.send(diagnostics);
-  } catch (err) {
-    res.status(500).send({ error: "Diagnostics failed", details: err.message });
+    const voices = await response.json();
+    return res.send(voices);
+  } catch (error) {
+    console.error("Voices fetch error:", error);
+    return res.status(500).send({
+      error: "Failed to fetch Murf voices",
+      details: error.message,
+    });
   }
 });
 
@@ -150,7 +120,7 @@ const downloadFile = async (url, outputFilePath) => {
 };
 
 // Murf TTS
-const generateMurfAudio = async (text, outputFilePath, voiceId = MURF_VOICE_ID, locale = MURF_LOCALE) => {
+const generateMurfAudio = async (text, outputFilePath) => {
   if (!murfApiKey) {
     throw new Error("MURF_API_KEY is missing");
   }
@@ -163,8 +133,8 @@ const generateMurfAudio = async (text, outputFilePath, voiceId = MURF_VOICE_ID, 
     },
     body: JSON.stringify({
       text,
-      voiceId,
-      locale,
+      voiceId: MURF_VOICE_ID,
+      locale: MURF_LOCALE,
       format: "MP3",
       sampleRate: 44100,
       channelType: "MONO",
@@ -230,16 +200,33 @@ app.post("/chat", async (req, res) => {
     await ensureAudiosFolder();
 
     const userMessage = req.body.message;
-    
+
     // 🔹 Initialize patient context if provided
     if (req.body.patientData) {
       currentPatient = req.body.patientData;
       chatHistory = []; // Reset history for new patient
     }
 
-    // 🔹 Default intro logic (Wait for initial patientData)
-    if (!userMessage && !req.body.patientData && !currentPatient) {
-      return res.status(400).json({ error: "No patient context or message provided" });
+    // 🔹 Default intro if no message and no new patient
+    if (!userMessage && !req.body.patientData) {
+      return res.send({
+        messages: [
+          {
+            text: "Hey dear. How are you feeling today?",
+            audio: await audioFileToBase64("audios/intro_0.wav"),
+            lipsync: await readJsonTranscript("audios/intro_0.json"),
+            facialExpression: "smile",
+            animation: "Talking_1",
+          },
+          {
+            text: "You can tell me anything. I'm here to help you 💙",
+            audio: await audioFileToBase64("audios/intro_1.wav"),
+            lipsync: await readJsonTranscript("audios/intro_1.json"),
+            facialExpression: "smile",
+            animation: "Talking_2",
+          },
+        ],
+      });
     }
 
     // 🔹 API key check
@@ -270,8 +257,6 @@ app.post("/chat", async (req, res) => {
       chatHistory = chatHistory.slice(-30);
     }
 
-    const greetingMode = !userMessage && currentPatient;
-
     // 🔥 AI CALL
     const completion = await groq.chat.completions.create({
       model: "llama-3.3-70b-versatile",
@@ -281,42 +266,31 @@ app.post("/chat", async (req, res) => {
         {
           role: "system",
           content: `
-You are Sanjeevni AI, a friendly and caring virtual AI Doctor.
+You are Sanjeevni AI, a friendly and caring virtual doctor.
 ${currentPatient ? `
 CURRENT PATIENT DETAILS:
 Name: ${currentPatient.name}
 Age: ${currentPatient.age}
-Patient ID: ${currentPatient.id}` : ""}
+Patient ID: ${currentPatient.id}
 
-CONVERSATION CONTEXT:
-${greetingMode ? `
-PHASE 1 (Greeting): This is the START of the session. 
-- You must warmly greet the patient by their NAME.
-- Mention you see they are ${currentPatient.age} years old.
-- Ask them "How can I help you today?" or "What brings you here?".
-- Do NOT give medical advice yet.
-` : `
-PHASE 2 (Consultation): The patient has described a problem.
-- Be supportive and professional.
-- Use the STRICT RESPONSE FORMAT below if clinical advice is needed.
-`}
+IMPORTANT: Start by warmly greeting the patient by their Name on the first message.` : ""}
 
-STRICT LANGUAGE RULE:
-- YOU MUST RESPOND ENTIRELY IN ENGLISH.
+Your personality:
+- Talk like a real human doctor (warm, polite, supportive)
+- Understand the user's problem first
+- Answer doubts clearly and directly
+- Ask follow-up questions if needed
+- Keep it simple and helpful
 
-STRICT RESPONSE FORMAT (Phase 2 Only):
-When providing medical advice or if symptoms are mentioned, use this format:
-1. Possible Condition:
-2. Cause:
-3. Treatment:
-4. Common Medicines: (no dosage)
-5. Home Care:
-6. Risk if Ignored:
-
-Keep the reply VERY SHORT and concise.
+Conversation rules:
+- Always respond based on latest user message
+- Do not repeat previous answers
+- Be conversational, not robotic
+- Maximum 3 messages
 
 STRICT OUTPUT:
-Return ONLY valid JSON. 
+Return ONLY valid JSON.
+
 Format:
 {
   "messages": [
@@ -328,7 +302,15 @@ Format:
   ]
 }
 
-NO markdown. ONLY JSON.
+Emotion guide:
+- Greeting → smile + Talking_1
+- Explanation → default + Talking_0
+- Reassuring → smile + Talking_2
+- Serious → sad + Talking_1
+
+NO markdown
+NO extra text
+ONLY JSON
 `,
         },
         ...chatHistory,
@@ -366,35 +348,25 @@ NO markdown. ONLY JSON.
       content: messages.map((m) => m.text).join(" "),
     });
 
-    // 🔊 Stable Sequential TTS + Lipsync processing
-    const voiceSettings = { voiceId: MURF_VOICE_ID, locale: MURF_LOCALE };
-
+    // 🔊 TTS + Lipsync processing
     for (let i = 0; i < messages.length; i++) {
       const message = messages[i];
       const fileName = `audios/message_${i}.mp3`;
-      const jsonPath = `audios/message_${i}.json`;
       const textInput = message.text || "Hello";
 
-      console.log(`🔊 Generating audio ${i} with voice ${voiceSettings.voiceId}:`, textInput.slice(0, 50));
+      console.log(`🔊 Generating audio ${i}:`, textInput);
 
       try {
-        await generateMurfAudio(textInput, fileName, voiceSettings.voiceId, voiceSettings.locale);
+        await generateMurfAudio(textInput, fileName);
         await lipSyncMessage(i);
 
-        if (existsSync(fileName)) {
-          message.audio = await audioFileToBase64(fileName);
-        } else {
-          console.error(`❌ Audio file not found after generation: ${fileName}`);
-          message.audio = null;
-        }
-
-        if (existsSync(jsonPath)) {
-          message.lipsync = await readJsonTranscript(jsonPath);
-        } else {
-          console.error(`❌ Lipsync file not found after generation: ${jsonPath}`);
-        }
+        message.audio = await audioFileToBase64(fileName);
+        message.lipsync = await readJsonTranscript(
+          `audios/message_${i}.json`
+        );
       } catch (ttsError) {
-        console.error(`⚠️ TTS/Lipsync failed for segment ${i}:`, ttsError.message);
+        console.error("⚠️ TTS/Lipsync failed:", ttsError.message);
+
         message.audio = null;
         message.lipsync = { mouthCues: [] };
       }
@@ -412,28 +384,22 @@ NO markdown. ONLY JSON.
   }
 });
 
-
-
-
 app.post("/send-to-doctor", async (req, res) => {
   try {
     const { name, age, mobile, id } = req.body;
-    
+
     // 1. Fetch history from Swasya AI
-    const baseUrl = (process.env.SWASYA_API_URL || "https://swasya-ai.onrender.com").replace(/\/+$/, ""); 
-    const historyUrl = `${baseUrl}/patients/summary/${id}`;
+    const swasyaBaseUrl = process.env.SWASYA_API_URL || "http://localhost:8000";
     let historyContext = "No previous medical history found in Swasya records.";
     try {
-      console.log(`🔍 [SANJEEVNI] Attempting to fetch history for patient ${id} from: ${historyUrl}`);
-      const swasyaSummaryRes = await fetch(historyUrl);
-      
+      console.log(`🔍 Fetching history for patient ${id} from Swasya at ${swasyaBaseUrl}...`);
+      const swasyaSummaryRes = await fetch(`${swasyaBaseUrl}/patients/summary/${id}`);
       if (swasyaSummaryRes.ok) {
         const sData = await swasyaSummaryRes.json();
-        console.log(`✅ [SANJEEVNI] History fetch success from Swasya`);
         if (sData.success) {
           const chiefComplaints = (sData.chief_complaints || []).map(c => `- ${c.date}: ${c.complaint}`).join("\n");
           const recentMeds = (sData.recent_medications || []).map(m => `- ${m}`).join("\n");
-          
+
           historyContext = `
 RECENT HISTORY:
 ${chiefComplaints || "None"}
@@ -445,16 +411,13 @@ LATEST ASSESSMENT:
 ${sData.latest_visit?.soap_note?.assessment || "None"}
 `;
         }
-      } else {
-        const errText = await swasyaSummaryRes.text().catch(() => "No error body");
-        console.warn(`⚠️ [SANJEEVNI] Swasya history fetch returned ${swasyaSummaryRes.status}: ${errText.slice(0, 100)}`);
       }
     } catch (err) {
       console.warn("⚠️ Could not fetch patient history context:", err.message);
     }
 
     // 2. Generate summary from chatHistory with context
-    const prompt = `You are an AI generating a medical consultation summary. 
+    const prompt = `You are an AI generating a medical consultation summary.
 Patient info: Name: ${name}, Age: ${age}, Mobile: ${mobile}
 
 PAST MEDICAL HISTORY (from records):
@@ -463,7 +426,7 @@ ${historyContext}
 Current Consultation History:
 ${chatHistory.map(m => m.role.toUpperCase() + ": " + m.content).join("\n")}
 
-Provide a concise, professional medical summary of the patient's current symptoms and conditions discussed. 
+Provide a concise, professional medical summary of the patient's current symptoms and conditions discussed.
 Incorporate past history ONLY if it's relevant to the current symptoms (e.g., if a symptom is worsening since the last visit).
 Do not include pleasantries.`;
 
@@ -482,10 +445,8 @@ Do not include pleasantries.`;
     console.log(`✅ Summary text file generated: ${filename}`);
 
     // 3. Send payload to Swasya AI doctor dashboard
-    const avatarPostUrl = `${baseUrl}/patients/avatar-summary`;
-    console.log(`📤 [SANJEEVNI] Sending payload to Swasya at: ${avatarPostUrl}`);
-    
-    const swasyaRes = await fetch(avatarPostUrl, {
+    console.log(`📤 Sending payload to Swasya AI backend at ${swasyaBaseUrl}...`);
+    const swasyaRes = await fetch(`${swasyaBaseUrl}/patients/avatar-summary`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -498,9 +459,9 @@ Do not include pleasantries.`;
     });
 
     if (!swasyaRes.ok) {
-      const errText = await swasyaRes.text().catch(() => "No error body");
-      console.error(`❌ [SANJEEVNI] Swasya Post Error (${swasyaRes.status}):`, errText.slice(0, 300));
-      throw new Error(`Doctor Dashboard integration failed: ${swasyaRes.status} - Please verify Swasya API availability.`);
+      const errText = await swasyaRes.text();
+      console.error("Swasya AI Error:", errText);
+      throw new Error(`Doctor Dashboard integration failed: ${swasyaRes.status} ${errText}`);
     }
 
     res.json({ success: true, message: "Summary generated and sent to doctor successfully.", file: filename });
@@ -512,7 +473,7 @@ Do not include pleasantries.`;
 });
 
 app.listen(port, () => {
-  console.log(`Sanjeevni AI listening on port ${port}`);
+  console.log(`Virtual Girlfriend listening on port ${port}`);
   console.log(`Rhubarb path: ${RHUBARB_PATH}`);
   console.log(`FFmpeg path: ${FFMPEG_PATH}`);
   console.log(`Murf voice: ${MURF_VOICE_ID}`);
