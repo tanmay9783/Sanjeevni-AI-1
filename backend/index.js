@@ -435,41 +435,6 @@ app.get("/test-voice/:lang", async (req, res) => {
   }
 });
 
-const generateMurfAudio = async (text, outputFilePath, voiceId = MURF_VOICE_ID, locale = MURF_LOCALE) => {
-  if (!murfApiKey) {
-    throw new Error("MURF_API_KEY is missing");
-  }
-
-  const response = await fetch("https://api.murf.ai/v1/speech/generate", {
-    method: "POST",
-    headers: {
-      "api-key": murfApiKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      text,
-      voiceId,
-      locale,
-      format: "MP3",
-      sampleRate: 44100,
-      channelType: "MONO",
-      encodeAsBase64: true,
-      modelVersion: "GEN2",
-      rate: 0,
-      pitch: 0,
-      variation: 1,
-    }),
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Murf TTS failed: ${response.status} - ${errText}`);
-  }
-
-  const { encodedAudio } = await response.json();
-  const buffer = Buffer.from(encodedAudio, "base64");
-  await fs.writeFile(outputFilePath, buffer);
-};
 
 app.post("/send-to-doctor", async (req, res) => {
   try {
@@ -568,7 +533,7 @@ Do not include pleasantries.`;
 });
 
 app.listen(port, () => {
-  console.log(`Virtual Girlfriend listening on port ${port}`);
+  console.log(`Sanjeevni AI listening on port ${port}`);
   console.log(`Rhubarb path: ${RHUBARB_PATH}`);
   console.log(`FFmpeg path: ${FFMPEG_PATH}`);
   console.log(`Murf voice: ${MURF_VOICE_ID}`);
