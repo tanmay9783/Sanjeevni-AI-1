@@ -18,6 +18,7 @@ export const UI = ({ hidden }) => {
   const [showHealth, setShowHealth] = useState(false);
   const [healthStatus, setHealthStatus] = useState(null);
   const [healthLoading, setHealthLoading] = useState(false);
+  const [testingVoice, setTestingVoice] = useState(false);
 
   const fetchHealth = async () => {
     setHealthLoading(true);
@@ -35,6 +36,24 @@ export const UI = ({ hidden }) => {
   useEffect(() => {
     if (showHealth) fetchHealth();
   }, [showHealth]);
+
+  const testVoice = async (lang) => {
+    setTestingVoice(true);
+    try {
+      const res = await fetch(`${backendUrl}/test-voice/${lang}`);
+      const data = await res.json();
+      if (data.success && data.audio) {
+        const audio = new Audio("data:audio/mp3;base64," + data.audio);
+        audio.play();
+      } else {
+        alert("Voice test failed: " + (data.error || "Unknown error"));
+      }
+    } catch (e) {
+      alert("Error testing voice: " + e.message);
+    } finally {
+      setTestingVoice(false);
+    }
+  };
 
   // Map of display language to speech recognition locale
   const languageLocales = {
