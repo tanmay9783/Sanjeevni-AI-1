@@ -270,8 +270,6 @@ app.post("/chat", async (req, res) => {
       chatHistory = chatHistory.slice(-30);
     }
 
-    const selectedLanguage = currentPatient?.language || "english";
-    const isHindi = selectedLanguage.toLowerCase() === "hindi";
     const greetingMode = !userMessage && currentPatient;
 
     // 🔥 AI CALL
@@ -288,8 +286,7 @@ ${currentPatient ? `
 CURRENT PATIENT DETAILS:
 Name: ${currentPatient.name}
 Age: ${currentPatient.age}
-Patient ID: ${currentPatient.id}
-Preferred Language: ${selectedLanguage}` : ""}
+Patient ID: ${currentPatient.id}` : ""}
 
 CONVERSATION CONTEXT:
 ${greetingMode ? `
@@ -305,7 +302,7 @@ PHASE 2 (Consultation): The patient has described a problem.
 `}
 
 STRICT LANGUAGE RULE:
-- YOU MUST RESPOND ENTIRELY IN ${selectedLanguage.toUpperCase()}.
+- YOU MUST RESPOND ENTIRELY IN ENGLISH.
 
 STRICT RESPONSE FORMAT (Phase 2 Only):
 When providing medical advice or if symptoms are mentioned, use this format:
@@ -370,9 +367,7 @@ NO markdown. ONLY JSON.
     });
 
     // 🔊 Stable Sequential TTS + Lipsync processing
-    const voiceSettings = isHindi 
-      ? { voiceId: "hi-IN-payal", locale: "hi-IN" } 
-      : { voiceId: MURF_VOICE_ID, locale: MURF_LOCALE };
+    const voiceSettings = { voiceId: MURF_VOICE_ID, locale: MURF_LOCALE };
 
     for (let i = 0; i < messages.length; i++) {
       const message = messages[i];
@@ -380,7 +375,7 @@ NO markdown. ONLY JSON.
       const jsonPath = `audios/message_${i}.json`;
       const textInput = message.text || "Hello";
 
-      console.log(`🔊 Generating audio ${i} (${selectedLanguage}) with voice ${voiceSettings.voiceId}:`, textInput.slice(0, 50));
+      console.log(`🔊 Generating audio ${i} with voice ${voiceSettings.voiceId}:`, textInput.slice(0, 50));
 
       try {
         await generateMurfAudio(textInput, fileName, voiceSettings.voiceId, voiceSettings.locale);
@@ -417,23 +412,7 @@ NO markdown. ONLY JSON.
   }
 });
 
-// 🎤 Test Voice Endpoint
-app.get("/test-voice/:lang", async (req, res) => {
-  const { lang } = req.params;
-  const voiceId = lang === "hindi" ? "hi-IN-payal" : MURF_VOICE_ID;
-  const locale = lang === "hindi" ? "hi-IN" : MURF_LOCALE;
-  const filePath = "audios/test_voice.mp3";
 
-  try {
-    lastTtsError = null;
-    await generateMurfAudio("Testing voice generation", filePath, voiceId, locale);
-    const audioBase64 = await audioFileToBase64(filePath);
-    res.send({ success: true, audio: audioBase64, voiceId });
-  } catch (e) {
-    lastTtsError = e.message;
-    res.status(500).send({ success: false, error: e.message, voiceId });
-  }
-});
 
 
 app.post("/send-to-doctor", async (req, res) => {

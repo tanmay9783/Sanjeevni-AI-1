@@ -18,7 +18,6 @@ export const UI = ({ hidden }) => {
   const [showHealth, setShowHealth] = useState(false);
   const [healthStatus, setHealthStatus] = useState(null);
   const [healthLoading, setHealthLoading] = useState(false);
-  const [testingVoice, setTestingVoice] = useState(false);
 
   const fetchHealth = async () => {
     setHealthLoading(true);
@@ -36,24 +35,6 @@ export const UI = ({ hidden }) => {
   useEffect(() => {
     if (showHealth) fetchHealth();
   }, [showHealth]);
-
-  const testVoice = async (lang) => {
-    setTestingVoice(true);
-    try {
-      const res = await fetch(`${backendUrl}/test-voice/${lang}`);
-      const data = await res.json();
-      if (data.success && data.audio) {
-        const audio = new Audio("data:audio/mp3;base64," + data.audio);
-        audio.play();
-      } else {
-        alert("Voice test failed: " + (data.error || "Unknown error"));
-      }
-    } catch (e) {
-      alert("Error testing voice: " + e.message);
-    } finally {
-      setTestingVoice(false);
-    }
-  };
 
   // Map of display language to speech recognition locale
   const languageLocales = {
@@ -193,7 +174,7 @@ export const UI = ({ hidden }) => {
     }
 
     const recognition        = new SpeechRecognition();
-    recognition.lang         = "hi-IN";   // change to "en-US" for English
+    recognition.lang         = "en-US";   // default to English
     recognition.continuous   = false;
     recognition.interimResults = false;
 
@@ -316,18 +297,6 @@ if (pythonPlaying) return;
               <div className="flex-1">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Age</label>
                 <input required type="number" value={formData.age} onChange={e => setFormData({...formData, age: e.target.value})} className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="30" />
-              </div>
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Language</label>
-                <select 
-                  required 
-                  value={formData.language} 
-                  onChange={e => setFormData({...formData, language: e.target.value})} 
-                  className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium"
-                >
-                  <option value="english">English</option>
-                  <option value="hindi">हिन्दी (Hindi)</option>
-                </select>
               </div>
             </div>
             <div>
@@ -509,22 +478,7 @@ if (pythonPlaying) return;
                     </div>
                   ))}
 
-                  <div className="pt-2 flex flex-col gap-2">
-                    <button 
-                      onClick={() => testVoice("hindi")} 
-                      disabled={testingVoice}
-                      className="w-full py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
-                    >
-                      {testingVoice ? "🔊 Testing..." : "🎯 Test Hindi Voice (hi-IN-payal)"}
-                    </button>
-                    <button 
-                      onClick={() => testVoice("english")} 
-                      disabled={testingVoice}
-                      className="w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
-                    >
-                      {testingVoice ? "🔊 Testing..." : "🎯 Test English Voice (Natalie)"}
-                    </button>
-                  </div>
+
                 </>
               )
             ) : (
