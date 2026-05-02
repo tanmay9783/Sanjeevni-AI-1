@@ -1,0 +1,17 @@
+Name: Hindi Test
+Age: 25
+Mobile: 1234567890
+UUID: 2708
+
+Summary:
+**Medical Consultation Summary**
+
+Patient: Hindi Test, Age: 25
+
+**Chief Complaint:** Not specified, as the patient has not yet reported their symptoms.
+
+**Past Medical History:** No previous medical history found in Swasya records.
+
+**Current Symptoms:** None discussed.
+
+**Assessment and Plan:** Pending patient's report of symptoms and further discussion.

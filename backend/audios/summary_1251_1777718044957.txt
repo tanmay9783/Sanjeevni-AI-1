@@ -1,0 +1,17 @@
+Name: Test User
+Age: 30
+Mobile: 9876543210
+UUID: 1251
+
+Summary:
+**Medical Consultation Summary**
+
+Patient: Test User, Age: 30, Mobile: 9876543210
+
+**Chief Complaint:** Not documented, as the patient has not reported any symptoms yet.
+
+**Past Medical History:** No previous medical history found in Swasya records.
+
+**Current Symptoms:** None discussed.
+
+**Assessment and Plan:** To be determined after patient reports symptoms and consultation is completed.

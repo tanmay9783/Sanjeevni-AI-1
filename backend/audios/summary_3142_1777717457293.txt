@@ -1,0 +1,15 @@
+Name: nitin
+Age: 11
+Mobile: 12432
+UUID: 3142
+
+Summary:
+Patient: Nitin, 11 years old
+
+Chief Complaint: The patient presents with an unclear complaint, as the description of symptoms was not provided in a language that could be understood.
+
+History of Present Illness: Unable to determine due to language barrier.
+
+Past Medical History: No previous medical history found in records, which may be relevant as there is no prior condition to compare with the current presentation.
+
+Assessment and Plan: Further evaluation is needed to determine the patient's condition and develop an appropriate treatment plan. Communication in a common language is essential to gather more information about the patient's symptoms and concerns.

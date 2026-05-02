@@ -15,8 +15,9 @@ const murfApiKey = process.env.MURF_API_KEY;
 
 // You can use either a Murf voice ID like "en-US-natalie"
 // or just the voice actor name like "Natalie"
-const MURF_VOICE_ID = process.env.MURF_VOICE_ID || "Natalie";
-const MURF_LOCALE = process.env.MURF_LOCALE || "en-US";
+// 🔹 Murf Voice Configuration — optimized for Indian PHC context
+const MURF_VOICE_ID = process.env.MURF_VOICE_ID || "hi-IN-shweta"; // Default to high-quality Hindi voice
+const MURF_LOCALE = process.env.MURF_LOCALE || "hi-IN";
 
 const app = express();
 app.use(express.json({ limit: "50mb" }));
@@ -120,7 +121,7 @@ const downloadFile = async (url, outputFilePath) => {
 };
 
 // Murf TTS
-const generateMurfAudio = async (text, outputFilePath) => {
+const generateMurfAudio = async (text, outputFilePath, voiceId = MURF_VOICE_ID, locale = MURF_LOCALE) => {
   if (!murfApiKey) {
     throw new Error("MURF_API_KEY is missing");
   }
@@ -133,8 +134,8 @@ const generateMurfAudio = async (text, outputFilePath) => {
     },
     body: JSON.stringify({
       text,
-      voiceId: MURF_VOICE_ID,
-      locale: MURF_LOCALE,
+      voiceId: voiceId,
+      locale: locale,
       format: "MP3",
       sampleRate: 44100,
       channelType: "MONO",
@@ -200,7 +201,7 @@ app.post("/chat", async (req, res) => {
     await ensureAudiosFolder();
 
     const userMessage = req.body.message;
-
+    
     // 🔹 Initialize patient context if provided
     if (req.body.patientData) {
       currentPatient = req.body.patientData;
@@ -272,8 +273,10 @@ CURRENT PATIENT DETAILS:
 Name: ${currentPatient.name}
 Age: ${currentPatient.age}
 Patient ID: ${currentPatient.id}
+Preferred Language: ${currentPatient.language === "hi-IN" ? "Hindi" : currentPatient.language === "mixed" ? "Hinglish (Hindi + English)" : "English"}
 
-IMPORTANT: Start by warmly greeting the patient by their Name on the first message.` : ""}
+IMPORTANT: Respond strictly in ${currentPatient.language === "hi-IN" ? "Hindi (Devanagari script)" : currentPatient.language === "mixed" ? "Hinglish (Mix of Hindi and English)" : "English"}.
+Start by warmly greeting the patient by their Name on the first message.` : ""}
 
 Your personality:
 - Talk like a real human doctor (warm, polite, supportive)
@@ -348,16 +351,25 @@ ONLY JSON
       content: messages.map((m) => m.text).join(" "),
     });
 
-    // 🔊 TTS + Lipsync processing
+      // 🔊 TTS + Lipsync processing
     for (let i = 0; i < messages.length; i++) {
       const message = messages[i];
       const fileName = `audios/message_${i}.mp3`;
       const textInput = message.text || "Hello";
 
-      console.log(`🔊 Generating audio ${i}:`, textInput);
+      console.log(`🔊 Generating audio ${i} in ${currentPatient?.language || 'en-IN'}:`, textInput);
+
+      // Select voice based on language
+      let voiceId = "hi-IN-shweta";
+      let locale = "hi-IN";
+      
+      if (currentPatient?.language === "en-IN") {
+        voiceId = "en-US-natalie";
+        locale = "en-US";
+      }
 
       try {
-        await generateMurfAudio(textInput, fileName);
+        await generateMurfAudio(textInput, fileName, voiceId, locale);
         await lipSyncMessage(i);
 
         message.audio = await audioFileToBase64(fileName);
@@ -387,7 +399,7 @@ ONLY JSON
 app.post("/send-to-doctor", async (req, res) => {
   try {
     const { name, age, mobile, id } = req.body;
-
+    
     // 1. Fetch history from Swasya AI
     const swasyaBaseUrl = process.env.SWASYA_API_URL || "http://localhost:8000";
     let historyContext = "No previous medical history found in Swasya records.";
@@ -399,7 +411,7 @@ app.post("/send-to-doctor", async (req, res) => {
         if (sData.success) {
           const chiefComplaints = (sData.chief_complaints || []).map(c => `- ${c.date}: ${c.complaint}`).join("\n");
           const recentMeds = (sData.recent_medications || []).map(m => `- ${m}`).join("\n");
-
+          
           historyContext = `
 RECENT HISTORY:
 ${chiefComplaints || "None"}
@@ -417,7 +429,7 @@ ${sData.latest_visit?.soap_note?.assessment || "None"}
     }
 
     // 2. Generate summary from chatHistory with context
-    const prompt = `You are an AI generating a medical consultation summary.
+    const prompt = `You are an AI generating a medical consultation summary. 
 Patient info: Name: ${name}, Age: ${age}, Mobile: ${mobile}
 
 PAST MEDICAL HISTORY (from records):
@@ -426,7 +438,7 @@ ${historyContext}
 Current Consultation History:
 ${chatHistory.map(m => m.role.toUpperCase() + ": " + m.content).join("\n")}
 
-Provide a concise, professional medical summary of the patient's current symptoms and conditions discussed.
+Provide a concise, professional medical summary of the patient's current symptoms and conditions discussed. 
 Incorporate past history ONLY if it's relevant to the current symptoms (e.g., if a symptom is worsening since the last visit).
 Do not include pleasantries.`;
 

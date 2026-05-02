@@ -1,0 +1,7 @@
+Name: f
+Age: 2
+Mobile: 2
+UUID: 6530
+
+Summary:
+Patient f, a 2-year-old, presented for consultation. No previous medical history is available. The patient's current symptoms and conditions were not discussed during the initial greeting. A detailed medical history and symptoms were not provided. Further evaluation is required to determine the patient's current condition and develop an appropriate treatment plan.
