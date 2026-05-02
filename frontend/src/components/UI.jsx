@@ -150,7 +150,7 @@ export const UI = ({ hidden }) => {
     }
 
     const recognition        = new SpeechRecognition();
-    recognition.lang         = formData.language || "hi-IN"; 
+    recognition.lang         = formData.language === "mixed" ? "hi-IN" : (formData.language || "hi-IN");
     recognition.continuous   = false;
     recognition.interimResults = false;
 

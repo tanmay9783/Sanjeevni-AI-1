@@ -360,11 +360,14 @@ ONLY JSON
       console.log(`🔊 Generating audio ${i} in ${currentPatient?.language || 'en-IN'}:`, textInput);
 
       // Select voice based on language
-      let voiceId = "hi-IN-shweta";
-      let locale = "hi-IN";
+      let voiceId = MURF_VOICE_ID || "Natalie";
+      let locale = MURF_LOCALE || "en-US";
       
-      if (currentPatient?.language === "en-IN") {
-        voiceId = "en-US-natalie";
+      if (currentPatient?.language === "hi-IN") {
+        voiceId = "hi-IN-shweta";
+        locale = "hi-IN";
+      } else if (currentPatient?.language === "en-IN") {
+        voiceId = "Natalie";
         locale = "en-US";
       }
 
