@@ -1,7 +1,7 @@
 services:
   - type: web
     name: sanjeevni-backend
-    rootDir: Backend
+    rootDir: backend
     env: docker
     plan: starter
     region: ohio
