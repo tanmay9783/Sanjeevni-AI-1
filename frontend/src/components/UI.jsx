@@ -151,54 +151,50 @@ export const UI = ({ hidden }) => {
 
     const recognition        = new SpeechRecognition();
     recognition.lang         = formData.language === "mixed" ? "hi-IN" : (formData.language || "hi-IN");
-    recognition.continuous   = false;
-    recognition.interimResults = false;
+    recognition.continuous   = true;
+    recognition.interimResults = true;
 
     recognition.onstart = () => {
       setRecordingStatus("🎙 Listening...");
     };
 
     recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      console.log("✅ React Speech transcript:", transcript);
-
-      if (input.current) input.current.value = transcript;
-
-      setIsRecording(false);
-      setRecordingStatus("✓ Sending...");
-
-      setTimeout(() => {
-        // ✅ Don't send if Python is currently in charge
-        if (pythonModeRef.current) {
-          console.log("🔇 React speech blocked — Python mode active");
-          setRecordingStatus("");
-          return;
+      let finalTranscript = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
         }
-        if (pythonPlaying) return;
-        const text = input.current?.value?.trim();
-        if (text && Date.now() - lastSentTime.current > 3000) {
-          console.log("🚀 Auto-sending from React Speech:", text);
-          lastSentTime.current = Date.now();
-          chat(text);
-          input.current.value = "";
-          setRecordingStatus("");
-        }
-      }, 400);
+      }
+      if (finalTranscript && input.current) {
+        input.current.value = (input.current.value + " " + finalTranscript).trim();
+      }
     };
 
     recognition.onerror = (event) => {
       console.error("Speech error:", event.error);
+      if (event.error === 'no-speech') return; 
       setIsRecording(false);
       setRecordingStatus("⚠ Error: " + event.error);
       setTimeout(() => setRecordingStatus(""), 3000);
     };
 
     recognition.onend = () => {
-      setIsRecording(false);
+      // Only process and send if we were actually recording and the user (or system) stopped it
+      if (!isRecordingRef.current) {
+        const text = input.current?.value?.trim();
+        if (text && !loading && !pythonPlaying && Date.now() - lastSentTime.current > 1500) {
+          console.log("🚀 Sending continuous transcript:", text);
+          lastSentTime.current = Date.now();
+          chat(text);
+          if (input.current) input.current.value = "";
+          setRecordingStatus("✓ Sent");
+          setTimeout(() => setRecordingStatus(""), 2000);
+        }
+      }
     };
 
     recognitionRef.current = recognition;
-  }, []);
+  }, [formData.language]);
 
   // ── Poll Node for Gradio mic transcript ───────────────────────────────────
   useEffect(() => {
