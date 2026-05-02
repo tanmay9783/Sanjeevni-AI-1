@@ -16,10 +16,10 @@ ENV RHUBARB_PATH=/opt/Rhubarb-Lip-Sync-1.13.0-Linux/rhubarb
 
 
 WORKDIR /app
-COPY package*.json ./
+COPY backend/package*.json ./
 RUN npm install --production
 
-COPY . .
+COPY backend/ .
 
 # Ensure audios folder exists at runtime
 RUN mkdir -p audios
