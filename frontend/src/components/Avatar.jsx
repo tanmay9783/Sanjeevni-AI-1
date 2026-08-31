@@ -85,6 +85,34 @@ const facialExpressions = {
     mouthSmileRight: 0.38473918302092225,
     tongueOut: 0.9618479575523053,
   },
+  // 🩺 Doctor-specific expressions
+  thinking: {
+    browInnerUp: 0.65,
+    eyeLookUpLeft: 0.35,
+    eyeLookUpRight: 0.35,
+    mouthPressLeft: 0.25,
+    mouthPressRight: 0.25,
+    eyeSquintLeft: 0.15,
+    eyeSquintRight: 0.15,
+  },
+  concerned: {
+    browDownLeft: 0.35,
+    browDownRight: 0.35,
+    browInnerUp: 0.55,
+    mouthFrownLeft: 0.3,
+    mouthFrownRight: 0.3,
+    eyeSquintLeft: 0.2,
+    eyeSquintRight: 0.2,
+  },
+  nodding: {
+    browInnerUp: 0.12,
+    eyeSquintLeft: 0.22,
+    eyeSquintRight: 0.22,
+    mouthSmileLeft: 0.25,
+    mouthSmileRight: 0.25,
+    mouthPressLeft: 0.1,
+    mouthPressRight: 0.1,
+  },
 };
 
 const corresponding = {
@@ -238,7 +266,30 @@ export function Avatar(props) {
     }
     pendingAudioRef.current = null;
 
-    if (!message.audio) return;
+    if (!message.audio) {
+      // 🔊 Browser TTS fallback — speaks even without Murf
+      if (message.text && window.speechSynthesis) {
+        window.speechSynthesis.cancel(); // stop any previous
+        const utterance = new SpeechSynthesisUtterance(message.text);
+        utterance.rate  = 0.88;
+        utterance.pitch = 1.05;
+        utterance.volume = 1;
+        // Pick a voice matching the patient language if possible
+        const voices = window.speechSynthesis.getVoices();
+        const langPref = document.documentElement.lang || "en-IN";
+        const match = voices.find(v => v.lang.startsWith(langPref.slice(0,2)));
+        if (match) utterance.voice = match;
+        utterance.onend = () => {
+          console.log("✅ Browser TTS ended");
+          onMessagePlayed();
+        };
+        utterance.onerror = () => onMessagePlayed();
+        window.speechSynthesis.speak(utterance);
+      } else {
+        onMessagePlayed();
+      }
+      return;
+    }
 
     const isPythonWav = message._pythonSource === true ||
                         message.audio.startsWith("UklGR") ||
@@ -318,6 +369,14 @@ export function Avatar(props) {
       }
     });
   };
+
+  // ── Idle breathing animation — subtle Y bob when not speaking ────────────
+  useFrame(() => {
+    if (group.current && !hasMessageRef.current) {
+      group.current.position.y =
+        -0.6 + Math.sin(Date.now() * 0.0008) * 0.006;
+    }
+  });
 
   // ── Per-frame: facial expression + lipsync ────────────────────────────────
   useFrame(() => {
