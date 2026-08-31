@@ -374,7 +374,7 @@ export function Avatar(props) {
   useFrame(() => {
     if (group.current && !hasMessageRef.current) {
       group.current.position.y =
-        -0.6 + Math.sin(Date.now() * 0.0008) * 0.006;
+        Math.sin(Date.now() * 0.0008) * 0.006;
     }
   });
 
