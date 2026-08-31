@@ -270,10 +270,18 @@ app.post("/chat", async (req, res) => {
     }
 
     // 🔹 Add user message to memory (if there is one)
+    // If this is an initial patient setup ping (patientData but no message),
+    // inject a synthetic greeting prompt so Groq always gets a valid 'user' turn
     if (userMessage) {
       chatHistory.push({
         role: "user",
         content: userMessage,
+      });
+    } else if (req.body.patientData) {
+      // Synthetic first message — triggers a personalised welcome from the AI
+      chatHistory.push({
+        role: "user",
+        content: "Please greet me warmly by my name and ask how I am feeling today.",
       });
     }
 
