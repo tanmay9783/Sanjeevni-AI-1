@@ -31,9 +31,10 @@ app.use(cors({
 const port = process.env.PORT || 3125;
 
 // Groq model — change here if you want to upgrade/downgrade
-// Free-tier safe options: "llama-3.1-8b-instant", "llama3-70b-8192"
-// Premium options: "meta-llama/llama-4-scout-17b-16e-instruct", "llama-3.3-70b-specdec"
-const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
+// Current available models (Aug 2026): "groq/compound", "groq/compound-mini",
+// "openai/gpt-oss-120b", "openai/gpt-oss-20b"
+// Deprecated: llama-3.3-70b-versatile, llama-3.1-8b-instant
+const GROQ_MODEL = process.env.GROQ_MODEL || "groq/compound-mini";
 
 
 // ── Global state variables (declared here to avoid ReferenceError in routes) ──
@@ -49,7 +50,20 @@ const RHUBARB_PATH = process.env.RHUBARB_PATH || "rhubarb";
 const FFMPEG_PATH  = process.env.FFMPEG_PATH  || "ffmpeg";
 
 app.get("/", (req, res) => {
-  res.send("Groq + Murf backend is running");
+  res.send(`Sanjeevni AI backend running | Model: ${GROQ_MODEL}`);
+});
+
+// Diagnostic: list all models available on your Groq API key
+app.get("/list-models", async (req, res) => {
+  try {
+    const response = await fetch("https://api.groq.com/openai/v1/models", {
+      headers: { "Authorization": `Bearer ${process.env.GROQ_API_KEY}` },
+    });
+    const data = await response.json();
+    res.json({ currentModel: GROQ_MODEL, available: data });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Optional: list Murf voices
