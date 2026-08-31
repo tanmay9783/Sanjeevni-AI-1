@@ -30,6 +30,12 @@ app.use(cors({
 
 const port = process.env.PORT || 3125;
 
+// Groq model — change here if you want to upgrade/downgrade
+// Free-tier safe options: "llama-3.1-8b-instant", "llama3-70b-8192"
+// Premium options: "meta-llama/llama-4-scout-17b-16e-instruct", "llama-3.3-70b-specdec"
+const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
+
+
 // ── Global state variables (declared here to avoid ReferenceError in routes) ──
 let chatHistory = [];
 let currentPatient = null;
@@ -264,7 +270,7 @@ app.post("/chat", async (req, res) => {
 
     // 🔥 AI CALL
     const completion = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
+      model: GROQ_MODEL,
       temperature: 0.6,
       max_tokens: 1000,
       messages: [
@@ -450,7 +456,7 @@ Incorporate past history ONLY if it's relevant to the current symptoms (e.g., if
 Do not include pleasantries.`;
 
     const completion = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
+      model: GROQ_MODEL,
       temperature: 0.3,
       messages: [{ role: "user", content: prompt }]
     });
