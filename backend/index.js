@@ -30,6 +30,13 @@ app.use(cors({
 
 const port = process.env.PORT || 3125;
 
+// ── Global state variables (declared here to avoid ReferenceError in routes) ──
+let chatHistory = [];
+let currentPatient = null;
+let latestTranscript = "";
+let pythonMode       = false;   // true = Python is in charge, React must stay silent
+let latestAvatarPayload = null; // stores the payload Python sends
+
 // Paths — set RHUBARB_PATH / FFMPEG_PATH in .env for local Windows dev.
 // On Railway/Render (Linux) leave them blank to use system-installed binaries.
 const RHUBARB_PATH = process.env.RHUBARB_PATH || "rhubarb";
@@ -187,9 +194,6 @@ const lipSyncMessage = async (messageIndex) => {
   console.log(`Lip sync done in ${Date.now() - time}ms`);
 };
 
-// 🔹 In-memory chat history (you can later replace with DB)
-let chatHistory = [];
-let currentPatient = null;
 
 app.post("/chat", async (req, res) => {
   try {
@@ -487,16 +491,7 @@ Do not include pleasantries.`;
   }
 });
 
-app.listen(port, () => {
-  console.log(`Virtual Girlfriend listening on port ${port}`);
-  console.log(`Rhubarb path: ${RHUBARB_PATH}`);
-  console.log(`FFmpeg path: ${FFMPEG_PATH}`);
-  console.log(`Murf voice: ${MURF_VOICE_ID}`);
-  console.log(`Murf locale: ${MURF_LOCALE}`);
-});
-
-
-let latestTranscript = "";
+// latestTranscript is declared at the top of the file
 
 
 app.post("/lip-sync", async (req, res) => {
@@ -543,8 +538,7 @@ app.get("/get-transcript", (req, res) => {
   latestTranscript = ""; // clear after reading
 });
 
-let pythonMode       = false;   // true = Python is in charge, React must stay silent
-let latestAvatarPayload = null; // stores the payload Python sends
+// pythonMode and latestAvatarPayload are declared at the top of the file
 
 // ── Python calls this BEFORE Get Diagnosis starts processing ────────────────
 app.post("/python-mode", (req, res) => {
@@ -581,4 +575,13 @@ app.get("/get-avatar-payload", (req, res) => {
   const p         = latestAvatarPayload;
   latestAvatarPayload = null;   // one-shot — clear after reading
   res.json({ payload: p });
+});
+
+// ── Start server (always last, after all routes are registered) ─────────────
+app.listen(port, () => {
+  console.log(`Sanjeevni AI listening on port ${port}`);
+  console.log(`Rhubarb path: ${RHUBARB_PATH}`);
+  console.log(`FFmpeg path: ${FFMPEG_PATH}`);
+  console.log(`Murf voice: ${MURF_VOICE_ID}`);
+  console.log(`Murf locale: ${MURF_LOCALE}`);
 });

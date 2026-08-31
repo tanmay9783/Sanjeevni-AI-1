@@ -117,26 +117,20 @@ export const ChatProvider = ({ children }) => {
   // ── onMessagePlayed — aware of Python vs React source ────────────────────
   const onMessagePlayedWrapped = () => {
     if (message?._pythonSource) {
-    //   console.log("✅ Python message finished");
-    //   setPythonPlaying(false);
-    //   pythonPlayingRef.current = false;
-    //   setMessage(null);
-    // } else {
-    //   onMessagePlayed();
-    console.log("✅ Python message finished — unmuting React");
-    setPythonPlaying(false);
-    pythonPlayingRef.current = false;
-    setMessage(null);
-    // ✅ Also clear any messages that queued up while Python was playing
-    setMessages([]);
-    // ✅ Now tell Node to unmute too
-    fetch(`${backendUrl}/python-mode`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ active: false }),
-    }).catch(() => {});
-  } else {
-    onMessagePlayed();
+      console.log("✅ Python message finished — unmuting React");
+      setPythonPlaying(false);
+      pythonPlayingRef.current = false;
+      setMessage(null);
+      // Also clear any messages that queued up while Python was playing
+      setMessages([]);
+      // Tell Node to unmute too
+      fetch(`${backendUrl}/python-mode`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: false }),
+      }).catch(() => {});
+    } else {
+      onMessagePlayed();
     }
   };
 

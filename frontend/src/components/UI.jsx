@@ -201,7 +201,7 @@ export const UI = ({ hidden }) => {
     const interval = setInterval(async () => {
       // ✅ KEY FIX: skip entirely if Python is in charge
       if (pythonModeRef.current) return;
-if (pythonPlaying) return;
+      if (pythonPlaying) return;
       try {
         const res  = await fetch(`${backendUrl}/get-transcript`);
         const data = await res.json();
