@@ -173,54 +173,45 @@ export const UI = ({ hidden }) => {
     recognition.onerror = (event) => {
       console.error("Speech error:", event.error);
 
-      if (event.error === "no-speech") {
-        // No-speech is normal — ignore silently
-        return;
-      }
+      // These are non-fatal — onend will fire after and handle restart
+      if (event.error === "no-speech" || event.error === "aborted") return;
 
       if (event.error === "network") {
-        // Network errors are transient (Google STT connection dropped)
-        // Auto-restart if user is still recording
+        // Network drop is transient — show reconnecting, let onend restart it
         if (isRecordingRef.current) {
           setRecordingStatus("🔄 Reconnecting mic...");
-          setTimeout(() => {
-            if (isRecordingRef.current) {
-              try {
-                recognition.start();
-                setRecordingStatus("🎙 Listening...");
-              } catch (e) {
-                console.warn("Mic restart failed:", e);
-              }
-            }
-          }, 800);
         }
-        return;
+        return; // DO NOT call recognition.start() here — it's still running!
       }
 
-      if (event.error === "aborted") {
-        // User manually stopped — ignore
-        return;
-      }
-
-      // Other errors: show and reset
+      // Fatal errors — stop recording
       setIsRecording(false);
       isRecordingRef.current = false;
-      setRecordingStatus("⚠ Mic error: " + event.error + ". Try again.");
-      setTimeout(() => setRecordingStatus(""), 3000);
+      setRecordingStatus("⚠ Mic error: " + event.error + ". Tap 🎙 to retry.");
+      setTimeout(() => setRecordingStatus(""), 3500);
     };
 
     recognition.onend = () => {
-      // If still in recording state but recognition ended unexpectedly → restart
       if (isRecordingRef.current) {
-        try {
-          recognition.start();
-          return; // Stay in recording state
-        } catch (e) {
-          console.warn("Recognition auto-restart failed:", e);
-        }
+        // Recognition ended unexpectedly (network drop, timeout, etc.)
+        // Wait 300ms for the engine to fully reset, then restart
+        setTimeout(() => {
+          if (!isRecordingRef.current) return; // User stopped in the meantime
+          try {
+            recognition.start();
+            setRecordingStatus("🎙 Listening...");
+          } catch (e) {
+            console.warn("Recognition restart failed:", e);
+            setIsRecording(false);
+            isRecordingRef.current = false;
+            setRecordingStatus("⚠ Mic disconnected. Tap 🎙 to retry.");
+            setTimeout(() => setRecordingStatus(""), 3000);
+          }
+        }, 300);
+        return; // Don't send text yet — still recording
       }
 
-      // Recording was intentionally stopped — process and send
+      // User intentionally stopped — process and send transcript
       const text = input.current?.value?.trim();
       if (text && !loading && !pythonPlaying && Date.now() - lastSentTime.current > 1500) {
         console.log("🚀 Sending transcript:", text);
